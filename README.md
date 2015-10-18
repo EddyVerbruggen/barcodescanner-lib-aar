@@ -1,5 +1,4 @@
-For NativeScipt 1.3+ we require .aar libraries, so the former zxing barcodescanner LibraryProject
-we used (copied from the Cordova barcodescanner repo) didn't work anymore.
+For NativeScipt 1.3+ we require .aar libraries, so the former zxing barcodescanner LibraryProject we used (copied from the Cordova barcodescanner repo) didn't work anymore.
 
 Steps to build a new .aar:
  * Clone this repo
