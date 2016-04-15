@@ -5,6 +5,7 @@ Steps to build a new .aar:
  * Open it in Android Studio
  * Update any source files as needed
  * Open the Gradle toolwindow
+ * Clean barcodescanner > build > outputs
  * Run barcodescanner > Tasks > build > build
  * The (release) .aar will be generated in barcodescanner > build > outputs
  * Commit and push any changes made
