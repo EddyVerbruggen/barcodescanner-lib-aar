@@ -24,6 +24,7 @@ import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.Locale;
 import java.util.TimeZone;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
@@ -31,16 +32,17 @@ import java.util.regex.Pattern;
  */
 public final class CalendarParsedResult extends ParsedResult {
 
-  private static final Pattern DATE_TIME = Pattern.compile("[0-9]{8}(T[0-9]{6}Z?)?");
+  private static final Pattern RFC2445_DURATION =
+      Pattern.compile("P(?:(\\d+)W)?(?:(\\d+)D)?(?:T(?:(\\d+)H)?(?:(\\d+)M)?(?:(\\d+)S)?)?");
+  private static final long[] RFC2445_DURATION_FIELD_UNITS = {
+      7 * 24 * 60 * 60 * 1000L, // 1 week
+      24 * 60 * 60 * 1000L, // 1 day
+      60 * 60 * 1000L, // 1 hour
+      60 * 1000L, // 1 minute
+      1000L, // 1 second
+  };
 
-  private static final DateFormat DATE_FORMAT = new SimpleDateFormat("yyyyMMdd", Locale.ENGLISH);
-  static {
-    // For dates without a time, for purposes of interacting with Android, the resulting timestamp
-    // needs to be midnight of that day in GMT. See:
-    // http://code.google.com/p/android/issues/detail?id=8330
-    DATE_FORMAT.setTimeZone(TimeZone.getTimeZone("GMT"));
-  }
-  private static final DateFormat DATE_TIME_FORMAT = new SimpleDateFormat("yyyyMMdd'T'HHmmss", Locale.ENGLISH);
+  private static final Pattern DATE_TIME = Pattern.compile("[0-9]{8}(T[0-9]{6}Z?)?");
 
   private final String summary;
   private final Date start;
@@ -57,6 +59,7 @@ public final class CalendarParsedResult extends ParsedResult {
   public CalendarParsedResult(String summary,
                               String startString,
                               String endString,
+                              String durationString,
                               String location,
                               String organizer,
                               String[] attendees,
@@ -65,14 +68,27 @@ public final class CalendarParsedResult extends ParsedResult {
                               double longitude) {
     super(ParsedResultType.CALENDAR);
     this.summary = summary;
+
     try {
       this.start = parseDate(startString);
-      this.end = endString == null ? null : parseDate(endString);
     } catch (ParseException pe) {
       throw new IllegalArgumentException(pe.toString());
     }
+
+    if (endString == null) {
+      long durationMS = parseDurationMS(durationString);
+      end = durationMS < 0L ? null : new Date(start.getTime() + durationMS);
+    } else {
+      try {
+        this.end = parseDate(endString);
+      } catch (ParseException pe) {
+        throw new IllegalArgumentException(pe.toString());
+      }
+    }
+
     this.startAllDay = startString.length() == 8;
     this.endAllDay = endString != null && endString.length() == 8;
+
     this.location = location;
     this.organizer = organizer;
     this.attendees = attendees;
@@ -100,7 +116,7 @@ public final class CalendarParsedResult extends ParsedResult {
   }
 
   /**
-   * May return null if the event has no duration.
+   * @return event end {@link Date}, or {@code null} if event has no duration
    * @see #getStart()
    */
   public Date getEnd() {
@@ -164,12 +180,12 @@ public final class CalendarParsedResult extends ParsedResult {
     }
     if (when.length() == 8) {
       // Show only year/month/day
-      return DATE_FORMAT.parse(when);
+      return buildDateFormat().parse(when);
     } else {
       // The when string can be local time, or UTC if it ends with a Z
       Date date;
       if (when.length() == 16 && when.charAt(15) == 'Z') {
-        date = DATE_TIME_FORMAT.parse(when.substring(0, 15));
+        date = buildDateTimeFormat().parse(when.substring(0, 15));
         Calendar calendar = new GregorianCalendar();
         long milliseconds = date.getTime();
         // Account for time zone difference
@@ -180,7 +196,7 @@ public final class CalendarParsedResult extends ParsedResult {
         milliseconds += calendar.get(Calendar.DST_OFFSET);
         date = new Date(milliseconds);
       } else {
-        date = DATE_TIME_FORMAT.parse(when);
+        date = buildDateTimeFormat().parse(when);
       }
       return date;
     }
@@ -194,6 +210,37 @@ public final class CalendarParsedResult extends ParsedResult {
         ? DateFormat.getDateInstance(DateFormat.MEDIUM)
         : DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.MEDIUM);
     return format.format(date);
+  }
+
+  private static long parseDurationMS(CharSequence durationString) {
+    if (durationString == null) {
+      return -1L;
+    }
+    Matcher m = RFC2445_DURATION.matcher(durationString);
+    if (!m.matches()) {
+      return -1L;
+    }
+    long durationMS = 0L;
+    for (int i = 0; i < RFC2445_DURATION_FIELD_UNITS.length; i++) {
+      String fieldValue = m.group(i + 1);
+      if (fieldValue != null) {
+        durationMS += RFC2445_DURATION_FIELD_UNITS[i] * Integer.parseInt(fieldValue);
+      }
+    }
+    return durationMS;
+  }
+
+  private static DateFormat buildDateFormat() {
+    DateFormat format = new SimpleDateFormat("yyyyMMdd", Locale.ENGLISH);
+    // For dates without a time, for purposes of interacting with Android, the resulting timestamp
+    // needs to be midnight of that day in GMT. See:
+    // http://code.google.com/p/android/issues/detail?id=8330
+    format.setTimeZone(TimeZone.getTimeZone("GMT"));
+    return format;
+  }
+
+  private static DateFormat buildDateTimeFormat() {
+    return new SimpleDateFormat("yyyyMMdd'T'HHmmss", Locale.ENGLISH);
   }
 
 }

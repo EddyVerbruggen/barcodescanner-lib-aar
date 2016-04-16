@@ -54,20 +54,21 @@ public class Detector {
   }
 
   /**
-   * <p>Detects a QR Code in an image, simply.</p>
+   * <p>Detects a QR Code in an image.</p>
    *
    * @return {@link DetectorResult} encapsulating results of detecting a QR Code
-   * @throws NotFoundException if no QR Code can be found
+   * @throws NotFoundException if QR Code cannot be found
+   * @throws FormatException if a QR Code cannot be decoded
    */
   public DetectorResult detect() throws NotFoundException, FormatException {
     return detect(null);
   }
 
   /**
-   * <p>Detects a QR Code in an image, simply.</p>
+   * <p>Detects a QR Code in an image.</p>
    *
    * @param hints optional hints to detector
-   * @return {@link NotFoundException} encapsulating results of detecting a QR Code
+   * @return {@link DetectorResult} encapsulating results of detecting a QR Code
    * @throws NotFoundException if QR Code cannot be found
    * @throws FormatException if a QR Code cannot be decoded
    */
@@ -200,7 +201,7 @@ public class Detector {
                                       float moduleSize) throws NotFoundException {
     int tltrCentersDimension = MathUtils.round(ResultPoint.distance(topLeft, topRight) / moduleSize);
     int tlblCentersDimension = MathUtils.round(ResultPoint.distance(topLeft, bottomLeft) / moduleSize);
-    int dimension = ((tltrCentersDimension + tlblCentersDimension) >> 1) + 7;
+    int dimension = ((tltrCentersDimension + tlblCentersDimension) / 2) + 7;
     switch (dimension & 0x03) { // mod 4
       case 0:
         dimension++;
@@ -218,6 +219,11 @@ public class Detector {
   /**
    * <p>Computes an average estimated module size based on estimated derived from the positions
    * of the three finder patterns.</p>
+   *
+   * @param topLeft detected top-left finder pattern center
+   * @param topRight detected top-right finder pattern center
+   * @param bottomLeft detected bottom-left finder pattern center
+   * @return estimated module size
    */
   protected final float calculateModuleSize(ResultPoint topLeft,
                                             ResultPoint topRight,
@@ -255,7 +261,7 @@ public class Detector {
   /**
    * See {@link #sizeOfBlackWhiteBlackRun(int, int, int, int)}; computes the total width of
    * a finder pattern by looking for a black-white-black run from the center in the direction
-   * of another point (another finder pattern center), and in the opposite direction too.</p>
+   * of another point (another finder pattern center), and in the opposite direction too.
    */
   private float sizeOfBlackWhiteBlackRunBothWays(int fromX, int fromY, int toX, int toY) {
 
@@ -312,7 +318,7 @@ public class Detector {
 
     int dx = Math.abs(toX - fromX);
     int dy = Math.abs(toY - fromY);
-    int error = -dx >> 1;
+    int error = -dx / 2;
     int xstep = fromX < toX ? 1 : -1;
     int ystep = fromY < toY ? 1 : -1;
 

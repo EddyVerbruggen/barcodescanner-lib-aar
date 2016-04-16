@@ -37,7 +37,7 @@ public final class WifiResultParser extends ResultParser {
       return null;
     }
     String ssid = matchSinglePrefixedField("S:", rawText, ';', false);
-    if (ssid == null || ssid.length() == 0) {
+    if (ssid == null || ssid.isEmpty()) {
       return null;
     }
     String pass = matchSinglePrefixedField("P:", rawText, ';', false);
@@ -45,7 +45,7 @@ public final class WifiResultParser extends ResultParser {
     if (type == null) {
       type = "nopass";
     }
-    boolean hidden = Boolean.parseBoolean(matchSinglePrefixedField("B:", rawText, ';', false));
+    boolean hidden = Boolean.parseBoolean(matchSinglePrefixedField("H:", rawText, ';', false));
     return new WifiParsedResult(type, ssid, pass, hidden);
   }
 }
