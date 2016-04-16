@@ -21,6 +21,7 @@ public final class RSSUtils {
 
   private RSSUtils() {}
 
+  /*
   static int[] getRSSwidths(int val, int n, int elements, int maxWidth, boolean noNarrow) {
     int[] widths = new int[elements];
     int bar;
@@ -60,6 +61,7 @@ public final class RSSUtils {
     widths[bar] = n;
     return widths;
   }
+   */
 
   public static int getRSSvalue(int[] widths, int maxWidth, boolean noNarrow) {
     int elements = widths.length;
@@ -124,9 +126,10 @@ public final class RSSUtils {
     return val;
   }
 
+  /*
   static int[] elements(int[] eDist, int N, int K) {
     int[] widths = new int[eDist.length + 2];
-    int twoK = K << 1;
+    int twoK = 2 * K;
     widths[0] = 1;
     int i;
     int minEven = 10;
@@ -151,6 +154,6 @@ public final class RSSUtils {
     }
     return widths;
   }
-
+   */
 
 }

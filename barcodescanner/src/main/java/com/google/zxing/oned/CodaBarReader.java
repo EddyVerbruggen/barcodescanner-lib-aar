@@ -23,6 +23,7 @@ import com.google.zxing.Result;
 import com.google.zxing.ResultPoint;
 import com.google.zxing.common.BitArray;
 
+import java.util.Arrays;
 import java.util.Map;
 
 /**
@@ -36,8 +37,8 @@ public final class CodaBarReader extends OneDReader {
   // These values are critical for determining how permissive the decoding
   // will be. All stripe sizes must be within the window these define, as
   // compared to the average stripe size.
-  private static final int MAX_ACCEPTABLE = (int) (PATTERN_MATCH_RESULT_SCALE_FACTOR * 2.0f);
-  private static final int PADDING = (int) (PATTERN_MATCH_RESULT_SCALE_FACTOR * 1.5f);
+  private static final float MAX_ACCEPTABLE = 2.0f;
+  private static final float PADDING = 1.5f;
 
   private static final String ALPHABET_STRING = "0123456789-$:/.+ABCD";
   static final char[] ALPHABET = ALPHABET_STRING.toCharArray();
@@ -78,6 +79,7 @@ public final class CodaBarReader extends OneDReader {
   @Override
   public Result decodeRow(int rowNumber, BitArray row, Map<DecodeHintType,?> hints) throws NotFoundException {
 
+    Arrays.fill(counters, 0);
     setCounters(row);
     int startOffset = findStartPattern();
     int nextStart = startOffset;
@@ -136,8 +138,10 @@ public final class CodaBarReader extends OneDReader {
       throw NotFoundException.getNotFoundInstance();
     }
 
-    decodeRowResult.deleteCharAt(decodeRowResult.length() - 1);
-    decodeRowResult.deleteCharAt(0);
+    if (hints == null || !hints.containsKey(DecodeHintType.RETURN_CODABAR_START_END)) {
+      decodeRowResult.deleteCharAt(decodeRowResult.length() - 1);
+      decodeRowResult.deleteCharAt(0);
+    }
 
     int runningCount = 0;
     for (int i = 0; i < startOffset; i++) {
@@ -184,15 +188,14 @@ public final class CodaBarReader extends OneDReader {
     }
 
     // Calculate our allowable size thresholds using fixed-point math.
-    int[] maxes = new int[4];
-    int[] mins = new int[4];
+    float[] maxes = new float[4];
+    float[] mins = new float[4];
     // Define the threshold of acceptability to be the midpoint between the
     // average small stripe and the average large stripe. No stripe lengths
     // should be on the "wrong" side of that line.
     for (int i = 0; i < 2; i++) {
-      mins[i] = 0;  // Accept arbitrarily small "short" stripes.
-      mins[i + 2] = ((sizes[i] << INTEGER_MATH_SHIFT) / counts[i] +
-                     (sizes[i + 2] << INTEGER_MATH_SHIFT) / counts[i + 2]) >> 1;
+      mins[i] = 0.0f;  // Accept arbitrarily small "short" stripes.
+      mins[i + 2] = ((float) sizes[i] / counts[i] + (float) sizes[i + 2] / counts[i + 2]) / 2.0f;
       maxes[i] = mins[i + 2];
       maxes[i + 2] = (sizes[i + 2] * MAX_ACCEPTABLE + PADDING) / counts[i + 2];
     }
@@ -205,7 +208,7 @@ public final class CodaBarReader extends OneDReader {
         // Even j = bars, while odd j = spaces. Categories 2 and 3 are for
         // long stripes, while 0 and 1 are for short stripes.
         int category = (j & 1) + (pattern & 1) * 2;
-        int size = counters[pos + j] << INTEGER_MATH_SHIFT;
+        int size = counters[pos + j];
         if (size < mins[category] || size > maxes[category]) {
           throw NotFoundException.getNotFoundInstance();
         }
@@ -234,7 +237,7 @@ public final class CodaBarReader extends OneDReader {
     }
     boolean isWhite = true;
     int count = 0;
-    for (; i < end; i++) {
+    while (i < end) {
       if (row.get(i) ^ isWhite) { // that is, exactly one is true
         count++;
       } else {
@@ -242,6 +245,7 @@ public final class CodaBarReader extends OneDReader {
         count = 1;
         isWhite = !isWhite;
       }
+      i++;
     }
     counterAppend(count);
   }
@@ -291,29 +295,41 @@ public final class CodaBarReader extends OneDReader {
     if (end >= counterLength) {
       return -1;
     }
-    // First element is for bars, second is for spaces.
-    int[] maxes = {0, 0};
-    int[] mins = {Integer.MAX_VALUE, Integer.MAX_VALUE};
-    int[] thresholds = {0, 0};
 
-    for (int i = 0; i < 2; i++) {
-      for (int j = position + i; j < end; j += 2) {
-        if (counters[j] < mins[i]) {
-          mins[i] = counters[j];
-        }
-        if (counters[j] > maxes[i]) {
-          maxes[i] = counters[j];
-        }
+    int[] theCounters = counters;
+
+    int maxBar = 0;
+    int minBar = Integer.MAX_VALUE;
+    for (int j = position; j < end; j += 2) {
+      int currentCounter = theCounters[j];
+      if (currentCounter < minBar) {
+        minBar = currentCounter;
       }
-      thresholds[i] = (mins[i] + maxes[i]) / 2;
+      if (currentCounter > maxBar) {
+        maxBar = currentCounter;
+      }
     }
+    int thresholdBar = (minBar + maxBar) / 2;
+
+    int maxSpace = 0;
+    int minSpace = Integer.MAX_VALUE;
+    for (int j = position + 1; j < end; j += 2) {
+      int currentCounter = theCounters[j];
+      if (currentCounter < minSpace) {
+        minSpace = currentCounter;
+      }
+      if (currentCounter > maxSpace) {
+        maxSpace = currentCounter;
+      }
+    }
+    int thresholdSpace = (minSpace + maxSpace) / 2;
 
     int bitmask = 1 << 7;
     int pattern = 0;
     for (int i = 0; i < 7; i++) {
-      int barOrSpace = i & 1;
+      int threshold = (i & 1) == 0 ? thresholdBar : thresholdSpace;
       bitmask >>= 1;
-      if (counters[position + i] > thresholds[barOrSpace]) {
+      if (theCounters[position + i] > threshold) {
         pattern |= bitmask;
       }
     }

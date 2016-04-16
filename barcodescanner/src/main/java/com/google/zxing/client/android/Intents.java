@@ -65,11 +65,28 @@ public final class Intents {
     public static final String DATA_MATRIX_MODE = "DATA_MATRIX_MODE";
 
     /**
+     * Decode only Aztec.
+     */
+    public static final String AZTEC_MODE = "AZTEC_MODE";
+
+    /**
+     * Decode only PDF417.
+     */
+    public static final String PDF417_MODE = "PDF417_MODE";
+
+    /**
      * Comma-separated list of formats to scan for. The values must match the names of
      * {@link com.google.zxing.BarcodeFormat}s, e.g. {@link com.google.zxing.BarcodeFormat#EAN_13}.
      * Example: "EAN_13,EAN_8,QR_CODE". This overrides {@link #MODE}.
      */
     public static final String FORMATS = "SCAN_FORMATS";
+
+    /**
+     * Optional parameter to specify the id of the camera from which to recognize barcodes.
+     * Overrides the default camera that would otherwise would have been selected.
+     * If provided, should be an int.
+     */
+    public static final String CAMERA_ID = "SCAN_CAMERA_ID";
 
     /**
      * @see com.google.zxing.DecodeHintType#CHARACTER_SET
@@ -154,14 +171,14 @@ public final class Intents {
     public static final String SAVE_HISTORY = "SAVE_HISTORY";
 
     /**
-     * Set to true if we should scan with the frontcamera (if there is one)
-     */
-    public static final String PREFER_FRONTCAMERA = "PREFER_FRONTCAMERA";
-
-    /**
-     * Set to true if we show the button to flip the camera (if available)
+     * Set to true if we want to show the button to flip the camera (if available)
      */
     public static final String SHOW_FLIP_CAMERA_BUTTON = "SHOW_FLIP_CAMERA_BUTTON";
+
+    /**
+     * Lock to "landscape" or "portrait" to override the default sensor-driven scan
+     */
+    public static final String ORIENTATION_LOCK = "ORIENTATION_LOCK";
 
     private Scan() {
     }

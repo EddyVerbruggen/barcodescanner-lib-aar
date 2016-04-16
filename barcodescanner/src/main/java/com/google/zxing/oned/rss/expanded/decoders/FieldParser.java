@@ -183,14 +183,15 @@ final class FieldParser {
     { "8100", 6},
     { "8101", 10},
     { "8102", 2},
-    { "8110", VARIABLE_LENGTH, 30},
+    { "8110", VARIABLE_LENGTH, 70},
+    { "8200", VARIABLE_LENGTH, 70},
   };
 
   private FieldParser() {
   }
 
   static String parseFieldsInGeneralPurpose(String rawInformation) throws NotFoundException{
-    if(rawInformation.length() == 0) {
+    if (rawInformation.isEmpty()) {
       return null;
     }
 

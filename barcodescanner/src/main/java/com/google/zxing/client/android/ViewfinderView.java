@@ -19,6 +19,7 @@ package com.google.zxing.client.android;
 import com.google.zxing.ResultPoint;
 import com.google.zxing.client.android.camera.CameraManager;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
@@ -27,10 +28,11 @@ import android.graphics.Paint;
 import android.graphics.Rect;
 import android.util.AttributeSet;
 import android.view.View;
-import com.google.zxing.FakeR;
 
 import java.util.ArrayList;
 import java.util.List;
+
+import barcodescanner.xservices.nl.barcodescanner.R;
 
 /**
  * This view is overlaid on top of the camera preview. It adds the viewfinder rectangle and partial
@@ -57,23 +59,19 @@ public final class ViewfinderView extends View {
   private List<ResultPoint> possibleResultPoints;
   private List<ResultPoint> lastPossibleResultPoints;
 
-  private static FakeR fakeR;
-
   // This constructor is used when the class is built from an XML resource.
   public ViewfinderView(Context context, AttributeSet attrs) {
     super(context, attrs);
 
-	fakeR = new FakeR(context);
-
     // Initialize these once for performance rather than calling them every time in onDraw().
     paint = new Paint(Paint.ANTI_ALIAS_FLAG);
     Resources resources = getResources();
-    maskColor = resources.getColor(fakeR.getId("color", "viewfinder_mask"));
-    resultColor = resources.getColor(fakeR.getId("color", "result_view"));
-    laserColor = resources.getColor(fakeR.getId("color", "viewfinder_laser"));
-    resultPointColor = resources.getColor(fakeR.getId("color", "possible_result_points"));
+    maskColor = resources.getColor(R.color.viewfinder_mask);
+    resultColor = resources.getColor(R.color.result_view);
+    laserColor = resources.getColor(R.color.viewfinder_laser);
+    resultPointColor = resources.getColor(R.color.possible_result_points);
     scannerAlpha = 0;
-    possibleResultPoints = new ArrayList<ResultPoint>(5);
+    possibleResultPoints = new ArrayList<>(5);
     lastPossibleResultPoints = null;
   }
 
@@ -81,13 +79,15 @@ public final class ViewfinderView extends View {
     this.cameraManager = cameraManager;
   }
 
+  @SuppressLint("DrawAllocation")
   @Override
   public void onDraw(Canvas canvas) {
     if (cameraManager == null) {
       return; // not ready yet, early draw before done configuring
     }
     Rect frame = cameraManager.getFramingRect();
-    if (frame == null) {
+    Rect previewFrame = cameraManager.getFramingRectInPreview();    
+    if (frame == null || previewFrame == null) {
       return;
     }
     int width = canvas.getWidth();
@@ -113,7 +113,6 @@ public final class ViewfinderView extends View {
       int middle = frame.height() / 2 + frame.top;
       canvas.drawRect(frame.left + 2, middle - 1, frame.right - 1, middle + 2, paint);
       
-      Rect previewFrame = cameraManager.getFramingRectInPreview();
       float scaleX = frame.width() / (float) previewFrame.width();
       float scaleY = frame.height() / (float) previewFrame.height();
 
@@ -124,7 +123,7 @@ public final class ViewfinderView extends View {
       if (currentPossible.isEmpty()) {
         lastPossibleResultPoints = null;
       } else {
-        possibleResultPoints = new ArrayList<ResultPoint>(5);
+        possibleResultPoints = new ArrayList<>(5);
         lastPossibleResultPoints = currentPossible;
         paint.setAlpha(CURRENT_POINT_OPACITY);
         paint.setColor(resultPointColor);

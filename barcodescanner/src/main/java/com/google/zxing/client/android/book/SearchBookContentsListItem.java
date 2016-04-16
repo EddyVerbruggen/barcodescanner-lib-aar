@@ -24,9 +24,10 @@ import android.text.style.StyleSpan;
 import android.util.AttributeSet;
 import android.widget.LinearLayout;
 import android.widget.TextView;
-import com.google.zxing.FakeR;
 
 import java.util.Locale;
+
+import barcodescanner.xservices.nl.barcodescanner.R;
 
 /**
  * A list item which displays the page number and snippet of this search result.
@@ -37,10 +38,8 @@ public final class SearchBookContentsListItem extends LinearLayout {
   private TextView pageNumberView;
   private TextView snippetView;
 
-  private static FakeR fakeR;
   SearchBookContentsListItem(Context context) {
     super(context);
-	fakeR = new FakeR(context);
   }
 
   public SearchBookContentsListItem(Context context, AttributeSet attrs) {
@@ -50,14 +49,16 @@ public final class SearchBookContentsListItem extends LinearLayout {
   @Override
   protected void onFinishInflate() {
     super.onFinishInflate();
-    pageNumberView = (TextView) findViewById(fakeR.getId("id", "page_number_view"));
-    snippetView = (TextView) findViewById(fakeR.getId("id", "snippet_view"));
+    pageNumberView = (TextView) findViewById(R.id.page_number_view);
+    snippetView = (TextView) findViewById(R.id.snippet_view);
   }
 
   public void set(SearchBookContentsResult result) {
     pageNumberView.setText(result.getPageNumber());
     String snippet = result.getSnippet();
-    if (snippet.length() > 0) {
+    if (snippet.isEmpty()) {
+      snippetView.setText("");
+    } else {
       if (result.getValidSnippet()) {
         String lowerQuery = SearchBookContentsResult.getQuery().toLowerCase(Locale.getDefault());
         String lowerSnippet = snippet.toLowerCase(Locale.getDefault());
@@ -78,8 +79,6 @@ public final class SearchBookContentsListItem extends LinearLayout {
         // This may be an error message, so don't try to bold the query terms within it
         snippetView.setText(snippet);
       }
-    } else {
-      snippetView.setText("");
     }
   }
 }

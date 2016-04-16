@@ -21,7 +21,6 @@ import com.google.zxing.client.android.Contents;
 import com.google.zxing.client.android.Intents;
 import com.google.zxing.client.android.LocaleManager;
 import com.google.zxing.client.android.PreferencesActivity;
-
 import com.google.zxing.client.android.book.SearchBookContentsActivity;
 import com.google.zxing.client.result.ParsedResult;
 import com.google.zxing.client.result.ParsedResultType;
@@ -29,21 +28,21 @@ import com.google.zxing.client.result.ResultParser;
 
 import android.app.Activity;
 import android.app.AlertDialog;
-import android.app.SearchManager;
 import android.content.ActivityNotFoundException;
-import android.content.DialogInterface;
+import android.content.ContentValues;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.preference.PreferenceManager;
 import android.provider.ContactsContract;
 import android.util.Log;
-import android.view.View;
-import com.google.zxing.FakeR;
 
-import java.util.Collection;
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
 import java.util.Locale;
+import java.util.ArrayList;
+
+import barcodescanner.xservices.nl.barcodescanner.R;
 
 /**
  * A base class for the Android-specific barcode handlers. These allow the app to polymorphically
@@ -59,13 +58,6 @@ import java.util.Locale;
 public abstract class ResultHandler {
 
   private static final String TAG = ResultHandler.class.getSimpleName();
-
-  private static final String GOOGLE_SHOPPER_PACKAGE = "com.google.android.apps.shopper";
-  private static final String GOOGLE_SHOPPER_ACTIVITY = GOOGLE_SHOPPER_PACKAGE +
-      ".results.SearchResultsActivity";
-  private static final String MARKET_URI_PREFIX = "market://details?id=";
-  private static final String MARKET_REFERRER_SUFFIX =
-      "&referrer=utm_source%3Dbarcodescanner%26utm_medium%3Dapps%26utm_campaign%3Dscan";
 
   private static final String[] EMAIL_TYPE_STRINGS = {"home", "work", "mobile"};
   private static final String[] PHONE_TYPE_STRINGS = {"home", "work", "mobile", "fax", "pager", "main"};
@@ -96,17 +88,6 @@ public abstract class ResultHandler {
   private final Result rawResult;
   private final String customProductSearch;
 
-  private final DialogInterface.OnClickListener shopperMarketListener =
-      new DialogInterface.OnClickListener() {
-    @Override
-    public void onClick(DialogInterface dialogInterface, int which) {
-      launchIntent(new Intent(Intent.ACTION_VIEW, Uri.parse(MARKET_URI_PREFIX +
-          GOOGLE_SHOPPER_PACKAGE + MARKET_REFERRER_SUFFIX)));
-    }
-  };
-
-  protected static FakeR fakeR;
-
   ResultHandler(Activity activity, ParsedResult result) {
     this(activity, result, null);
   }
@@ -116,24 +97,17 @@ public abstract class ResultHandler {
     this.activity = activity;
     this.rawResult = rawResult;
     this.customProductSearch = parseCustomSearchURL();
-
-	fakeR = new FakeR(activity);
-
-	// Make sure the Shopper button is hidden by default. Without this, scanning a product followed
-    // by a QR Code would leave the button on screen among the QR Code actions.
-    View shopperButton = activity.findViewById(fakeR.getId("id", "shopper_button"));
-    shopperButton.setVisibility(View.GONE);
   }
 
-  public ParsedResult getResult() {
+  public final ParsedResult getResult() {
     return result;
   }
 
-  boolean hasCustomProductSearch() {
+  final boolean hasCustomProductSearch() {
     return customProductSearch != null;
   }
 
-  Activity getActivity() {
+  final Activity getActivity() {
     return activity;
   }
 
@@ -152,6 +126,9 @@ public abstract class ResultHandler {
    */
   public abstract int getButtonText(int index);
 
+  public Integer getDefaultButtonID() {
+    return null;
+  }
 
   /**
    * Execute the action which corresponds to the nth button.
@@ -168,17 +145,6 @@ public abstract class ResultHandler {
    */
   public boolean areContentsSecure() {
     return false;
-  }
-
-  /**
-   * The Google Shopper button is special and is not handled by the abstract button methods above.
-   *
-   * @param listener The on click listener to install for this button.
-   */
-  void showGoogleShopperButton(View.OnClickListener listener) {
-    View shopperButton = activity.findViewById(fakeR.getId("id", "shopper_button"));
-    shopperButton.setVisibility(View.VISIBLE);
-    shopperButton.setOnClickListener(listener);
   }
 
   /**
@@ -208,14 +174,15 @@ public abstract class ResultHandler {
   }
 
   final void addPhoneOnlyContact(String[] phoneNumbers,String[] phoneTypes) {
-    addContact(null, null, phoneNumbers, phoneTypes, null, null, null, null, null, null, null, null, null, null);
+    addContact(null, null, null, phoneNumbers, phoneTypes, null, null, null, null, null, null, null, null, null, null, null);
   }
 
   final void addEmailOnlyContact(String[] emails, String[] emailTypes) {
-    addContact(null, null, null, null, emails, emailTypes, null, null, null, null, null, null, null, null);
+    addContact(null, null, null, null, null, emails, emailTypes, null, null, null, null, null, null, null, null, null);
   }
 
   final void addContact(String[] names,
+                        String[] nicknames,
                         String pronunciation,
                         String[] phoneNumbers,
                         String[] phoneTypes,
@@ -227,8 +194,9 @@ public abstract class ResultHandler {
                         String addressType,
                         String org,
                         String title,
-                        String url,
-                        String birthday) {
+                        String[] urls,
+                        String birthday,
+                        String[] geo) {
 
     // Only use the first name in the array, if present.
     Intent intent = new Intent(Intent.ACTION_INSERT_OR_EDIT, ContactsContract.Contacts.CONTENT_URI);
@@ -259,18 +227,56 @@ public abstract class ResultHandler {
       }
     }
 
-    // No field for URL, birthday; use notes
-    StringBuilder aggregatedNotes = new StringBuilder();
-    for (String aNote : new String[] { url, birthday, note }) {
-      if (aNote != null) {
-        if (aggregatedNotes.length() > 0) {
-          aggregatedNotes.append('\n');
+    ArrayList<ContentValues> data = new ArrayList<>();
+    if (urls != null) {
+      for (String url : urls) {
+        if (url != null && !url.isEmpty()) {
+          ContentValues row = new ContentValues(2);
+          row.put(ContactsContract.Data.MIMETYPE, ContactsContract.CommonDataKinds.Website.CONTENT_ITEM_TYPE);
+          row.put(ContactsContract.CommonDataKinds.Website.URL, url);
+          data.add(row);
+          break;
         }
-        aggregatedNotes.append(aNote);
       }
     }
+
+    if (birthday != null) {
+      ContentValues row = new ContentValues(3);
+      row.put(ContactsContract.Data.MIMETYPE, ContactsContract.CommonDataKinds.Event.CONTENT_ITEM_TYPE);
+      row.put(ContactsContract.CommonDataKinds.Event.TYPE, ContactsContract.CommonDataKinds.Event.TYPE_BIRTHDAY);
+      row.put(ContactsContract.CommonDataKinds.Event.START_DATE, birthday);
+      data.add(row);
+    }
+
+    if (nicknames != null) {
+      for (String nickname : nicknames) {
+        if (nickname != null && !nickname.isEmpty()) {
+          ContentValues row = new ContentValues(3);
+          row.put(ContactsContract.Data.MIMETYPE, ContactsContract.CommonDataKinds.Nickname.CONTENT_ITEM_TYPE);
+          row.put(ContactsContract.CommonDataKinds.Nickname.TYPE,
+                  ContactsContract.CommonDataKinds.Nickname.TYPE_DEFAULT);
+          row.put(ContactsContract.CommonDataKinds.Nickname.NAME, nickname);
+          data.add(row);
+          break;
+        }
+      }
+    }
+
+    if (!data.isEmpty()) {
+      intent.putParcelableArrayListExtra(ContactsContract.Intents.Insert.DATA, data);
+    }
+
+    StringBuilder aggregatedNotes = new StringBuilder();
+    if (note != null) {
+      aggregatedNotes.append('\n').append(note);
+    }
+    if (geo != null) {
+      aggregatedNotes.append('\n').append(geo[0]).append(',').append(geo[1]);
+    }
+
     if (aggregatedNotes.length() > 0) {
-      putExtra(intent, ContactsContract.Intents.Insert.NOTES, aggregatedNotes.toString());
+      // Remove extra leading '\n'
+      putExtra(intent, ContactsContract.Intents.Insert.NOTES, aggregatedNotes.substring(1));
     }
     
     putExtra(intent, ContactsContract.Intents.Insert.IM_HANDLE, instantMessenger);
@@ -312,19 +318,23 @@ public abstract class ResultHandler {
   }
 
   final void shareByEmail(String contents) {
-    sendEmailFromUri("mailto:", null, activity.getString(fakeR.getId("string", "msg_share_subject_line")),
-        contents);
+    sendEmail(null, null, null, null, contents);
   }
 
-  final void sendEmail(String address, String subject, String body) {
-    sendEmailFromUri("mailto:" + address, address, subject, body);
-  }
-
-  // Use public Intent fields rather than private GMail app fields to specify subject and body.
-  final void sendEmailFromUri(String uri, String email, String subject, String body) {
-    Intent intent = new Intent(Intent.ACTION_SEND, Uri.parse(uri));
-    if (email != null) {
-      intent.putExtra(Intent.EXTRA_EMAIL, new String[] {email});
+  final void sendEmail(String[] to,
+                       String[] cc,
+                       String[] bcc,
+                       String subject,
+                       String body) {
+    Intent intent = new Intent(Intent.ACTION_SEND, Uri.parse("mailto:"));
+    if (to != null && to.length != 0) {
+      intent.putExtra(Intent.EXTRA_EMAIL, to);
+    }
+    if (cc != null && cc.length != 0) {
+      intent.putExtra(Intent.EXTRA_CC, cc);
+    }
+    if (bcc != null && bcc.length != 0) {
+      intent.putExtra(Intent.EXTRA_BCC, bcc);
     }
     putExtra(intent, Intent.EXTRA_SUBJECT, subject);
     putExtra(intent, Intent.EXTRA_TEXT, body);
@@ -333,8 +343,7 @@ public abstract class ResultHandler {
   }
 
   final void shareBySMS(String contents) {
-    sendSMSFromUri("smsto:", activity.getString(fakeR.getId("string", "msg_share_subject_line")) + ":\n" +
-        contents);
+    sendSMSFromUri("smsto:", contents);
   }
 
   final void sendSMS(String phoneNumber, String body) {
@@ -356,8 +365,8 @@ public abstract class ResultHandler {
   final void sendMMSFromUri(String uri, String subject, String body) {
     Intent intent = new Intent(Intent.ACTION_SENDTO, Uri.parse(uri));
     // The Messaging app needs to see a valid subject or else it will treat this an an SMS.
-    if (subject == null || subject.length() == 0) {
-      putExtra(intent, "subject", activity.getString(fakeR.getId("string", "msg_default_mms_subject")));
+    if (subject == null || subject.isEmpty()) {
+      putExtra(intent, "subject", activity.getString(R.string.msg_default_mms_subject));
     } else {
       putExtra(intent, "subject", subject);
     }
@@ -382,14 +391,9 @@ public abstract class ResultHandler {
    * Do a geo search using the address as the query.
    *
    * @param address The address to find
-   * @param title An optional title, e.g. the name of the business at this address
    */
-  final void searchMap(String address, CharSequence title) {
-    String query = address;
-    if (title != null && title.length() > 0) {
-      query += " (" + title + ')';
-    }
-    launchIntent(new Intent(Intent.ACTION_VIEW, Uri.parse("geo:0,0?q=" + Uri.encode(query))));
+  final void searchMap(String address) {
+    launchIntent(new Intent(Intent.ACTION_VIEW, Uri.parse("geo:0,0?q=" + Uri.encode(address))));
   }
 
   final void getDirections(double latitude, double longitude) {
@@ -428,7 +432,7 @@ public abstract class ResultHandler {
     Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
     try {
       launchIntent(intent);
-    } catch (ActivityNotFoundException anfe) {
+    } catch (ActivityNotFoundException ignored) {
       Log.w(TAG, "Nothing available to handle " + intent);
     }
   }
@@ -439,39 +443,13 @@ public abstract class ResultHandler {
     launchIntent(intent);
   }
 
-  final void openGoogleShopper(String query) {
-
-    // Construct Intent to launch Shopper
-    Intent intent = new Intent(Intent.ACTION_SEARCH);
-    intent.setClassName(GOOGLE_SHOPPER_PACKAGE, GOOGLE_SHOPPER_ACTIVITY);
-    intent.putExtra(SearchManager.QUERY, query);
-
-    // Is it available?
-    PackageManager pm = activity.getPackageManager();
-    Collection<?> availableApps = pm.queryIntentActivities(intent, PackageManager.MATCH_DEFAULT_ONLY);
-
-    if (availableApps != null && !availableApps.isEmpty()) {
-      // If something can handle it, start it
-      activity.startActivity(intent);
-    } else {
-      // Otherwise offer to install it from Market.
-      AlertDialog.Builder builder = new AlertDialog.Builder(activity);
-      builder.setTitle(fakeR.getId("string", "msg_google_shopper_missing"));
-      builder.setMessage(fakeR.getId("string", "msg_install_google_shopper"));
-      builder.setIcon(fakeR.getId("drawable", "shopper_icon"));
-      builder.setPositiveButton(fakeR.getId("string", "button_ok"), shopperMarketListener);
-      builder.setNegativeButton(fakeR.getId("string", "button_cancel"), null);
-      builder.show();
-    }
-  }
-
   /**
    * Like {@link #launchIntent(Intent)} but will tell you if it is not handle-able
    * via {@link ActivityNotFoundException}.
    *
    * @throws ActivityNotFoundException
    */
-  void rawLaunchIntent(Intent intent) {
+  final void rawLaunchIntent(Intent intent) {
     if (intent != null) {
       intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_WHEN_TASK_RESET);
       Log.d(TAG, "Launching intent: " + intent + " with extras: " + intent.getExtras());
@@ -482,20 +460,20 @@ public abstract class ResultHandler {
   /**
    * Like {@link #rawLaunchIntent(Intent)} but will show a user dialog if nothing is available to handle.
    */
-  void launchIntent(Intent intent) {
+  final void launchIntent(Intent intent) {
     try {
       rawLaunchIntent(intent);
-    } catch (ActivityNotFoundException e) {
+    } catch (ActivityNotFoundException ignored) {
       AlertDialog.Builder builder = new AlertDialog.Builder(activity);
-      builder.setTitle(fakeR.getId("string", "app_name"));
-      builder.setMessage(fakeR.getId("string", "msg_intent_failed"));
-      builder.setPositiveButton(fakeR.getId("string", "button_ok"), null);
+      builder.setTitle(R.string.app_name);
+      builder.setMessage(R.string.msg_intent_failed);
+      builder.setPositiveButton(R.string.button_ok, null);
       builder.show();
     }
   }
 
   private static void putExtra(Intent intent, String key, String value) {
-    if (value != null && value.length() > 0) {
+    if (value != null && !value.isEmpty()) {
       intent.putExtra(key, value);
     }
   }
@@ -504,25 +482,33 @@ public abstract class ResultHandler {
     SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(activity);
     String customProductSearch = prefs.getString(PreferencesActivity.KEY_CUSTOM_PRODUCT_SEARCH,
         null);
-    if (customProductSearch != null && customProductSearch.trim().length() == 0) {
+    if (customProductSearch != null && customProductSearch.trim().isEmpty()) {
       return null;
     }
     return customProductSearch;
   }
 
-  String fillInCustomSearchURL(String text) {
+  final String fillInCustomSearchURL(String text) {
     if (customProductSearch == null) {
       return text; // ?
     }
-    String url = customProductSearch.replace("%s", text);
+    try {
+      text = URLEncoder.encode(text, "UTF-8");
+    } catch (UnsupportedEncodingException e) {
+      // can't happen; UTF-8 is always supported. Continue, I guess, without encoding      
+    }
+    String url = customProductSearch;
     if (rawResult != null) {
-      url = url.replace("%f", rawResult.getBarcodeFormat().toString());
+      // Replace %f but only if it doesn't seem to be a hex escape sequence. This remains
+      // problematic but avoids the more surprising problem of breaking escapes
+      url = url.replaceFirst("%f(?![0-9a-f])", rawResult.getBarcodeFormat().toString());
       if (url.contains("%t")) {
         ParsedResult parsedResultAgain = ResultParser.parseResult(rawResult);
         url = url.replace("%t", parsedResultAgain.getType().toString());
       }
     }
-    return url;
+    // Replace %s last as it might contain itself %f or %t
+    return url.replace("%s", text);
   }
 
 }

@@ -30,7 +30,7 @@ import java.util.Map;
  * <p>Implements decoding of the ITF format, or Interleaved Two of Five.</p>
  *
  * <p>This Reader will scan ITF barcodes of certain lengths only.
- * At the moment it reads length 6, 10, 12, 14, 16, 24, and 44 as these have appeared "in the wild". Not all
+ * At the moment it reads length 6, 8, 10, 12, 14, 16, 18, 20, 24, and 44 as these have appeared "in the wild". Not all
  * lengths are scanned, especially shorter ones, to avoid false positives. This in turn is due to a lack of
  * required checksum function.</p>
  *
@@ -44,13 +44,14 @@ import java.util.Map;
  */
 public final class ITFReader extends OneDReader {
 
-  private static final int MAX_AVG_VARIANCE = (int) (PATTERN_MATCH_RESULT_SCALE_FACTOR * 0.42f);
-  private static final int MAX_INDIVIDUAL_VARIANCE = (int) (PATTERN_MATCH_RESULT_SCALE_FACTOR * 0.8f);
+  private static final float MAX_AVG_VARIANCE = 0.38f;
+  private static final float MAX_INDIVIDUAL_VARIANCE = 0.78f;
 
   private static final int W = 3; // Pixel width of a wide line
   private static final int N = 1; // Pixed width of a narrow line
 
-  private static final int[] DEFAULT_ALLOWED_LENGTHS = { 44, 24, 20, 18, 16, 14, 12, 10, 8, 6 };
+  /** Valid ITF lengths. Anything longer than the largest value is also allowed. */
+  private static final int[] DEFAULT_ALLOWED_LENGTHS = { 6, 8, 10, 12, 14 };
 
   // Stores the actual narrow line width of the image being decoded.
   private int narrowLineWidth = -1;
@@ -102,14 +103,21 @@ public final class ITFReader extends OneDReader {
     }
 
     // To avoid false positives with 2D barcodes (and other patterns), make
-    // an assumption that the decoded string must be 6, 10 or 14 digits.
+    // an assumption that the decoded string must be a 'standard' length if it's short
     int length = resultString.length();
     boolean lengthOK = false;
+    int maxAllowedLength = 0;
     for (int allowedLength : allowedLengths) {
       if (length == allowedLength) {
         lengthOK = true;
         break;
       }
+      if (allowedLength > maxAllowedLength) {
+        maxAllowedLength = allowedLength;
+      }
+    }
+    if (!lengthOK && length > maxAllowedLength) {
+      lengthOK = true;
     }
     if (!lengthOK) {
       throw FormatException.getFormatInstance();
@@ -149,7 +157,7 @@ public final class ITFReader extends OneDReader {
       recordPattern(row, payloadStart, counterDigitPair);
       // Split them into each array
       for (int k = 0; k < 5; k++) {
-        int twoK = k << 1;
+        int twoK = 2 * k;
         counterBlack[k] = counterDigitPair[twoK];
         counterWhite[k] = counterDigitPair[twoK + 1];
       }
@@ -180,7 +188,7 @@ public final class ITFReader extends OneDReader {
     // Determine the width of a narrow line in pixels. We can do this by
     // getting the width of the start pattern and dividing by 4 because its
     // made up of 4 narrow lines.
-    this.narrowLineWidth = (startPattern[1] - startPattern[0]) >> 2;
+    this.narrowLineWidth = (startPattern[1] - startPattern[0]) / 4;
 
     validateQuietZone(row, startPattern[0]);
 
@@ -205,6 +213,9 @@ public final class ITFReader extends OneDReader {
   private void validateQuietZone(BitArray row, int startPattern) throws NotFoundException {
 
     int quietCount = this.narrowLineWidth * 10;  // expect to find this many pixels of quiet zone
+
+    // if there are not so many pixel at all let's try as many as possible
+    quietCount = quietCount < startPattern ? quietCount : startPattern;
 
     for (int i = startPattern - 1; quietCount > 0 && i >= 0; i--) {
       if (row.get(i)) {
@@ -283,9 +294,6 @@ public final class ITFReader extends OneDReader {
   private static int[] findGuardPattern(BitArray row,
                                         int rowOffset,
                                         int[] pattern) throws NotFoundException {
-
-    // TODO: This is very similar to implementation in UPCEANReader. Consider if they can be
-    // merged to a single method.
     int patternLength = pattern.length;
     int[] counters = new int[patternLength];
     int width = row.getSize();
@@ -325,13 +333,12 @@ public final class ITFReader extends OneDReader {
    * @throws NotFoundException if digit cannot be decoded
    */
   private static int decodeDigit(int[] counters) throws NotFoundException {
-
-    int bestVariance = MAX_AVG_VARIANCE; // worst variance we'll accept
+    float bestVariance = MAX_AVG_VARIANCE; // worst variance we'll accept
     int bestMatch = -1;
     int max = PATTERNS.length;
     for (int i = 0; i < max; i++) {
       int[] pattern = PATTERNS[i];
-      int variance = patternMatchVariance(counters, pattern, MAX_INDIVIDUAL_VARIANCE);
+      float variance = patternMatchVariance(counters, pattern, MAX_INDIVIDUAL_VARIANCE);
       if (variance < bestVariance) {
         bestVariance = variance;
         bestMatch = i;

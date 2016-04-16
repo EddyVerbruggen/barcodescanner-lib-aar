@@ -21,20 +21,21 @@ import com.google.zxing.client.result.ParsedResult;
 
 import android.app.Activity;
 
+import barcodescanner.xservices.nl.barcodescanner.R;
+
 /**
  * Handles email addresses.
  *
  * @author dswitkin@google.com (Daniel Switkin)
  */
 public final class EmailAddressResultHandler extends ResultHandler {
-  private static int[] buttons;
+  private static final int[] buttons = {
+      R.string.button_email,
+      R.string.button_add_contact
+  };
 
   public EmailAddressResultHandler(Activity activity, ParsedResult result) {
     super(activity, result);
-	buttons = new int[]{
-		fakeR.getId("string", "button_email"),
-		fakeR.getId("string", "button_add_contact")
-	};
   }
 
   @Override
@@ -52,21 +53,20 @@ public final class EmailAddressResultHandler extends ResultHandler {
     EmailAddressParsedResult emailResult = (EmailAddressParsedResult) getResult();
     switch (index) {
       case 0:
-        sendEmailFromUri(emailResult.getMailtoURI(),
-                         emailResult.getEmailAddress(),
-                         emailResult.getSubject(),
-                         emailResult.getBody());
+        sendEmail(emailResult.getTos(),
+                  emailResult.getCCs(),
+                  emailResult.getBCCs(),
+                  emailResult.getSubject(),
+                  emailResult.getBody());
         break;
       case 1:
-        String[] addresses = new String[1];
-        addresses[0] = emailResult.getEmailAddress();
-        addEmailOnlyContact(addresses, null);
+        addEmailOnlyContact(emailResult.getTos(), null);
         break;
     }
   }
 
   @Override
   public int getDisplayTitle() {
-    return fakeR.getId("string", "result_email_address");
+    return R.string.result_email_address;
   }
 }
