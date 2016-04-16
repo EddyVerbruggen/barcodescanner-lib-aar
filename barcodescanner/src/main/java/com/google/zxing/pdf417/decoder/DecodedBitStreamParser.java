@@ -17,14 +17,20 @@
 package com.google.zxing.pdf417.decoder;
 
 import com.google.zxing.FormatException;
+import com.google.zxing.common.CharacterSetECI;
 import com.google.zxing.common.DecoderResult;
+import com.google.zxing.pdf417.PDF417ResultMetadata;
 
+import java.io.ByteArrayOutputStream;
 import java.math.BigInteger;
+import java.nio.charset.Charset;
+import java.util.Arrays;
 
 /**
  * <p>This class contains the methods for decoding the PDF417 codewords.</p>
  *
  * @author SITA Lab (kevin.osullivan@sita.aero)
+ * @author Guenther Grau
  */
 final class DecodedBitStreamParser {
 
@@ -41,6 +47,9 @@ final class DecodedBitStreamParser {
   private static final int BYTE_COMPACTION_MODE_LATCH = 901;
   private static final int NUMERIC_COMPACTION_MODE_LATCH = 902;
   private static final int BYTE_COMPACTION_MODE_LATCH_6 = 924;
+  private static final int ECI_USER_DEFINED = 925;
+  private static final int ECI_GENERAL_PURPOSE = 926;
+  private static final int ECI_CHARSET = 927;
   private static final int BEGIN_MACRO_PDF417_CONTROL_BLOCK = 928;
   private static final int BEGIN_MACRO_PDF417_OPTIONAL_FIELD = 923;
   private static final int MACRO_PDF417_TERMINATOR = 922;
@@ -56,7 +65,7 @@ final class DecodedBitStreamParser {
   private static final int PAL = 29;
 
   private static final char[] PUNCT_CHARS = {
-      ';', '<', '>', '@', '[', '\\', '}', '_', '`', '~', '!',
+      ';', '<', '>', '@', '[', '\\', ']', '_', '`', '~', '!',
       '\r', '\t', ',', ':', '\n', '-', '.', '$', '/', '"', '|', '*',
       '(', ')', '?', '{', '}', '\''};
 
@@ -64,6 +73,8 @@ final class DecodedBitStreamParser {
       '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '&',
       '\r', '\t', ',', ':', '#', '-', '.', '$', '/', '+', '%', '*',
       '=', '^'};
+
+  private static final Charset DEFAULT_ENCODING = Charset.forName("ISO-8859-1");
 
   /**
    * Table containing values for the exponent of 900.
@@ -80,31 +91,53 @@ final class DecodedBitStreamParser {
     }
   }
 
+  private static final int NUMBER_OF_SEQUENCE_CODEWORDS = 2;
+
   private DecodedBitStreamParser() {
   }
 
-  static DecoderResult decode(int[] codewords) throws FormatException {
-    StringBuilder result = new StringBuilder(100);
+  static DecoderResult decode(int[] codewords, String ecLevel) throws FormatException {
+    StringBuilder result = new StringBuilder(codewords.length * 2);
+    Charset encoding = DEFAULT_ENCODING;
     // Get compaction mode
     int codeIndex = 1;
     int code = codewords[codeIndex++];
+    PDF417ResultMetadata resultMetadata = new PDF417ResultMetadata();
     while (codeIndex < codewords[0]) {
       switch (code) {
         case TEXT_COMPACTION_MODE_LATCH:
           codeIndex = textCompaction(codewords, codeIndex, result);
           break;
         case BYTE_COMPACTION_MODE_LATCH:
-          codeIndex = byteCompaction(code, codewords, codeIndex, result);
+        case BYTE_COMPACTION_MODE_LATCH_6:
+          codeIndex = byteCompaction(code, codewords, encoding, codeIndex, result);
+          break;
+        case MODE_SHIFT_TO_BYTE_COMPACTION_MODE:
+          result.append((char) codewords[codeIndex++]);
           break;
         case NUMERIC_COMPACTION_MODE_LATCH:
           codeIndex = numericCompaction(codewords, codeIndex, result);
           break;
-        case MODE_SHIFT_TO_BYTE_COMPACTION_MODE:
-          codeIndex = byteCompaction(code, codewords, codeIndex, result);
+        case ECI_CHARSET:
+          CharacterSetECI charsetECI =
+              CharacterSetECI.getCharacterSetECIByValue(codewords[codeIndex++]);
+          encoding = Charset.forName(charsetECI.name());
           break;
-        case BYTE_COMPACTION_MODE_LATCH_6:
-          codeIndex = byteCompaction(code, codewords, codeIndex, result);
+        case ECI_GENERAL_PURPOSE:
+          // Can't do anything with generic ECI; skip its 2 characters
+          codeIndex += 2;
           break;
+        case ECI_USER_DEFINED:
+          // Can't do anything with user ECI; skip its 1 character
+          codeIndex ++;
+          break;
+        case BEGIN_MACRO_PDF417_CONTROL_BLOCK:
+          codeIndex = decodeMacroBlock(codewords, codeIndex, resultMetadata);
+          break;
+        case BEGIN_MACRO_PDF417_OPTIONAL_FIELD:
+        case MACRO_PDF417_TERMINATOR:
+          // Should not see these outside a macro block
+          throw FormatException.getFormatInstance();
         default:
           // Default to text compaction. During testing numerous barcodes
           // appeared to be missing the starting mode. In these cases defaulting
@@ -122,7 +155,58 @@ final class DecodedBitStreamParser {
     if (result.length() == 0) {
       throw FormatException.getFormatInstance();
     }
-    return new DecoderResult(null, result.toString(), null, null);
+    DecoderResult decoderResult = new DecoderResult(null, result.toString(), null, ecLevel);
+    decoderResult.setOther(resultMetadata);
+    return decoderResult;
+  }
+
+  private static int decodeMacroBlock(int[] codewords, int codeIndex, PDF417ResultMetadata resultMetadata)
+      throws FormatException {
+    if (codeIndex + NUMBER_OF_SEQUENCE_CODEWORDS > codewords[0]) {
+      // we must have at least two bytes left for the segment index
+      throw FormatException.getFormatInstance();
+    }
+    int[] segmentIndexArray = new int[NUMBER_OF_SEQUENCE_CODEWORDS];
+    for (int i = 0; i < NUMBER_OF_SEQUENCE_CODEWORDS; i++, codeIndex++) {
+      segmentIndexArray[i] = codewords[codeIndex];
+    }
+    resultMetadata.setSegmentIndex(Integer.parseInt(decodeBase900toBase10(segmentIndexArray,
+        NUMBER_OF_SEQUENCE_CODEWORDS)));
+
+    StringBuilder fileId = new StringBuilder();
+    codeIndex = textCompaction(codewords, codeIndex, fileId);
+    resultMetadata.setFileId(fileId.toString());
+
+    if (codewords[codeIndex] == BEGIN_MACRO_PDF417_OPTIONAL_FIELD) {
+      codeIndex++;
+      int[] additionalOptionCodeWords = new int[codewords[0] - codeIndex];
+      int additionalOptionCodeWordsIndex = 0;
+
+      boolean end = false;
+      while ((codeIndex < codewords[0]) && !end) {
+        int code = codewords[codeIndex++];
+        if (code < TEXT_COMPACTION_MODE_LATCH) {
+          additionalOptionCodeWords[additionalOptionCodeWordsIndex++] = code;
+        } else {
+          switch (code) {
+            case MACRO_PDF417_TERMINATOR:
+              resultMetadata.setLastSegment(true);
+              codeIndex++;
+              end = true;
+              break;
+            default:
+              throw FormatException.getFormatInstance();
+          }
+        }
+      }
+
+      resultMetadata.setOptionalData(Arrays.copyOf(additionalOptionCodeWords, additionalOptionCodeWordsIndex));
+    } else if (codewords[codeIndex] == MACRO_PDF417_TERMINATOR) {
+      resultMetadata.setLastSegment(true);
+      codeIndex++;
+    }
+
+    return codeIndex;
   }
 
   /**
@@ -137,9 +221,9 @@ final class DecodedBitStreamParser {
    */
   private static int textCompaction(int[] codewords, int codeIndex, StringBuilder result) {
     // 2 character per codeword
-    int[] textCompactionData = new int[codewords[0] << 1];
+    int[] textCompactionData = new int[(codewords[0] - codeIndex) * 2];
     // Used to hold the byte compaction value if there is a mode shift
-    int[] byteCompactionData = new int[codewords[0] << 1];
+    int[] byteCompactionData = new int[(codewords[0] - codeIndex) * 2];
 
     int index = 0;
     boolean end = false;
@@ -156,10 +240,11 @@ final class DecodedBitStreamParser {
             textCompactionData[index++] = TEXT_COMPACTION_MODE_LATCH;
             break;
           case BYTE_COMPACTION_MODE_LATCH:
-            codeIndex--;
-            end = true;
-            break;
+          case BYTE_COMPACTION_MODE_LATCH_6:
           case NUMERIC_COMPACTION_MODE_LATCH:
+          case BEGIN_MACRO_PDF417_CONTROL_BLOCK:
+          case BEGIN_MACRO_PDF417_OPTIONAL_FIELD:
+          case MACRO_PDF417_TERMINATOR:
             codeIndex--;
             end = true;
             break;
@@ -172,12 +257,8 @@ final class DecodedBitStreamParser {
             // in Text Compaction mode; its use is described in 5.4.2.4.
             textCompactionData[index] = MODE_SHIFT_TO_BYTE_COMPACTION_MODE;
             code = codewords[codeIndex++];
-            byteCompactionData[index] = code; //Integer.toHexString(code);
+            byteCompactionData[index] = code;
             index++;
-            break;
-          case BYTE_COMPACTION_MODE_LATCH_6:
-            codeIndex--;
-            end = true;
             break;
         }
       }
@@ -259,6 +340,7 @@ final class DecodedBitStreamParser {
               priorToShiftMode = subMode;
               subMode = Mode.PUNCT_SHIFT;
             } else if (subModeCh == MODE_SHIFT_TO_BYTE_COMPACTION_MODE) {
+              // TODO Does this need to use the current character encoding? See other occurrences below
               result.append((char) byteCompactionData[i]);
             } else if (subModeCh == TEXT_COMPACTION_MODE_LATCH) {
               subMode = Mode.ALPHA;
@@ -353,17 +435,22 @@ final class DecodedBitStreamParser {
    *
    * @param mode      The byte compaction mode i.e. 901 or 924
    * @param codewords The array of codewords (data + error)
+   * @param encoding  Currently active character encoding
    * @param codeIndex The current index into the codeword array.
    * @param result    The decoded data is appended to the result.
    * @return The next index into the codeword array.
    */
-  private static int byteCompaction(int mode, int[] codewords, int codeIndex, StringBuilder result) {
+  private static int byteCompaction(int mode,
+                                    int[] codewords,
+                                    Charset encoding,
+                                    int codeIndex,
+                                    StringBuilder result) {
+    ByteArrayOutputStream decodedBytes = new ByteArrayOutputStream();
     if (mode == BYTE_COMPACTION_MODE_LATCH) {
       // Total number of Byte Compaction characters to be encoded
       // is not a multiple of 6
       int count = 0;
       long value = 0;
-      char[] decodedData = new char[6];
       int[] byteCompactedCodewords = new int[6];
       boolean end = false;
       int nextCode = codewords[codeIndex++];
@@ -387,26 +474,25 @@ final class DecodedBitStreamParser {
             // Decode every 5 codewords
             // Convert to Base 256
             for (int j = 0; j < 6; ++j) {
-              decodedData[5 - j] = (char) (value % 256);
-              value >>= 8;
+              decodedBytes.write((byte) (value >> (8 * (5 - j))));
             }
-            result.append(decodedData);
+            value = 0;
             count = 0;
           }
-       }
-     }
+        }
+      }
 
-     // if the end of all codewords is reached the last codeword needs to be added
-     if (codeIndex == codewords[0] && nextCode < TEXT_COMPACTION_MODE_LATCH) {
+      // if the end of all codewords is reached the last codeword needs to be added
+      if (codeIndex == codewords[0] && nextCode < TEXT_COMPACTION_MODE_LATCH) {
         byteCompactedCodewords[count++] = nextCode;
-     }
+      }
 
-     // If Byte Compaction mode is invoked with codeword 901,
-     // the last group of codewords is interpreted directly
-     // as one byte per codeword, without compaction.
-     for (int i = 0; i < count; i++) {
-        result.append((char)byteCompactedCodewords[i]);
-     }
+      // If Byte Compaction mode is invoked with codeword 901,
+      // the last group of codewords is interpreted directly
+      // as one byte per codeword, without compaction.
+      for (int i = 0; i < count; i++) {
+        decodedBytes.write((byte) byteCompactedCodewords[i]);
+      }
 
     } else if (mode == BYTE_COMPACTION_MODE_LATCH_6) {
       // Total number of Byte Compaction characters to be encoded
@@ -435,16 +521,15 @@ final class DecodedBitStreamParser {
         if ((count % 5 == 0) && (count > 0)) {
           // Decode every 5 codewords
           // Convert to Base 256
-          char[] decodedData = new char[6];
           for (int j = 0; j < 6; ++j) {
-            decodedData[5 - j] = (char) (value & 0xFF);
-            value >>= 8;
+            decodedBytes.write((byte) (value >> (8 * (5 - j))));
           }
-          result.append(decodedData);
+          value = 0;
           count = 0;
         }
       }
     }
+    result.append(new String(decodedBytes.toByteArray(), encoding));
     return codeIndex;
   }
 
@@ -478,7 +563,7 @@ final class DecodedBitStreamParser {
             code == BEGIN_MACRO_PDF417_OPTIONAL_FIELD ||
             code == MACRO_PDF417_TERMINATOR) {
           codeIndex--;
-          end = true;          
+          end = true;
         }
       }
       if (count % MAX_NUMERIC_CODEWORDS == 0 ||
@@ -488,9 +573,11 @@ final class DecodedBitStreamParser {
         // while in Numeric Compaction mode) serves  to terminate the
         // current Numeric Compaction mode grouping as described in 5.4.4.2,
         // and then to start a new one grouping.
-        String s = decodeBase900toBase10(numericCodewords, count);
-        result.append(s);
-        count = 0;
+        if (count > 0) {
+          String s = decodeBase900toBase10(numericCodewords, count);
+          result.append(s);
+          count = 0;
+        }
       }
     }
     return codeIndex;

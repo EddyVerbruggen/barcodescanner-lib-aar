@@ -28,6 +28,8 @@ import android.content.Intent;
 import java.text.DateFormat;
 import java.util.Date;
 
+import barcodescanner.xservices.nl.barcodescanner.R;
+
 /**
  * Handles calendar entries encoded in QR Codes.
  *
@@ -38,14 +40,12 @@ public final class CalendarResultHandler extends ResultHandler {
 
   private static final String TAG = CalendarResultHandler.class.getSimpleName();
 
-  private static int[] buttons;
+  private static final int[] buttons = {
+      R.string.button_add_calendar
+  };
 
   public CalendarResultHandler(Activity activity, ParsedResult result) {
     super(activity, result);
-
-	buttons = new int[]{
-		fakeR.getId("string", "button_add_calendar")
-	};
   }
 
   @Override
@@ -183,6 +183,6 @@ public final class CalendarResultHandler extends ResultHandler {
 
   @Override
   public int getDisplayTitle() {
-    return fakeR.getId("string", "result_calendar");
+    return R.string.result_calendar;
   }
 }

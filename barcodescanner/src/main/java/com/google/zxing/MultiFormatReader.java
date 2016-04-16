@@ -96,9 +96,10 @@ public final class MultiFormatReader implements Reader {
     this.hints = hints;
 
     boolean tryHarder = hints != null && hints.containsKey(DecodeHintType.TRY_HARDER);
+    @SuppressWarnings("unchecked")
     Collection<BarcodeFormat> formats =
         hints == null ? null : (Collection<BarcodeFormat>) hints.get(DecodeHintType.POSSIBLE_FORMATS);
-    Collection<Reader> readers = new ArrayList<Reader>();
+    Collection<Reader> readers = new ArrayList<>();
     if (formats != null) {
       boolean addOneDReader =
           formats.contains(BarcodeFormat.UPC_A) ||
