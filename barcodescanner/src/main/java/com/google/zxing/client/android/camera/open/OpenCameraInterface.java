@@ -43,6 +43,8 @@ public final class OpenCameraInterface {
     if (numCameras == 0) {
       Log.w(TAG, "No cameras!");
       return null;
+    } else if (numCameras == 1) {
+      cameraId = 0;
     }
 
     boolean explicitRequest = cameraId >= 0;
