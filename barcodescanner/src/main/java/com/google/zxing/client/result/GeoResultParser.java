@@ -36,7 +36,7 @@ public final class GeoResultParser extends ResultParser {
   
   @Override
   public GeoParsedResult parse(Result result) {
-    String rawText = getMassagedText(result);
+    CharSequence rawText = getMassagedText(result);
     Matcher matcher = GEO_URL_PATTERN.matcher(rawText);
     if (!matcher.matches()) {
       return null;
@@ -64,7 +64,7 @@ public final class GeoResultParser extends ResultParser {
           return null;
         }
       }
-    } catch (NumberFormatException nfe) {
+    } catch (NumberFormatException ignored) {
       return null;
     }
     return new GeoParsedResult(latitude, longitude, altitude, query);

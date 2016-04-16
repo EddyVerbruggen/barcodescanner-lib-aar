@@ -20,6 +20,7 @@ import com.google.zxing.Result;
 
 import java.io.ByteArrayOutputStream;
 import java.io.UnsupportedEncodingException;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -42,6 +43,8 @@ public final class VCardResultParser extends ResultParser {
   private static final Pattern EQUALS = Pattern.compile("=");
   private static final Pattern SEMICOLON = Pattern.compile(";");
   private static final Pattern UNESCAPED_SEMICOLONS = Pattern.compile("(?<!\\\\);+");
+  private static final Pattern COMMA = Pattern.compile(",");
+  private static final Pattern SEMICOLON_OR_COMMA = Pattern.compile("[;,]");
 
   @Override
   public AddressBookParsedResult parse(Result result) {
@@ -59,6 +62,8 @@ public final class VCardResultParser extends ResultParser {
       names = matchVCardPrefixedField("N", rawText, true, false);
       formatNames(names);
     }
+    List<String> nicknameString = matchSingleVCardPrefixedField("NICKNAME", rawText, true, false);
+    String[] nicknames = nicknameString == null ? null : COMMA.split(nicknameString.get(0));
     List<List<String>> phoneNumbers = matchVCardPrefixedField("TEL", rawText, true, false);
     List<List<String>> emails = matchVCardPrefixedField("EMAIL", rawText, true, false);
     List<String> note = matchSingleVCardPrefixedField("NOTE", rawText, false, false);
@@ -69,9 +74,15 @@ public final class VCardResultParser extends ResultParser {
       birthday = null;
     }
     List<String> title = matchSingleVCardPrefixedField("TITLE", rawText, true, false);
-    List<String> url = matchSingleVCardPrefixedField("URL", rawText, true, false);
+    List<List<String>> urls = matchVCardPrefixedField("URL", rawText, true, false);
     List<String> instantMessenger = matchSingleVCardPrefixedField("IMPP", rawText, true, false);
-    return new AddressBookParsedResult(toPrimaryValues(names), 
+    List<String> geoString = matchSingleVCardPrefixedField("GEO", rawText, true, false);
+    String[] geo = geoString == null ? null : SEMICOLON_OR_COMMA.split(geoString.get(0));
+    if (geo != null && geo.length != 2) {
+      geo = null;
+    }
+    return new AddressBookParsedResult(toPrimaryValues(names),
+                                       nicknames,
                                        null, 
                                        toPrimaryValues(phoneNumbers), 
                                        toTypes(phoneNumbers),
@@ -84,7 +95,8 @@ public final class VCardResultParser extends ResultParser {
                                        toPrimaryValue(org),
                                        toPrimaryValue(birthday),
                                        toPrimaryValue(title),
-                                       toPrimaryValue(url));
+                                       toPrimaryValues(urls),
+                                       geo);
   }
 
   static List<List<String>> matchVCardPrefixedField(CharSequence prefix,
@@ -116,7 +128,7 @@ public final class VCardResultParser extends ResultParser {
       if (metadataString != null) {
         for (String metadatum : SEMICOLON.split(metadataString)) {
           if (metadata == null) {
-            metadata = new ArrayList<String>(1);
+            metadata = new ArrayList<>(1);
           }
           metadata.add(metadatum);
           String[] metadatumTokens = EQUALS.split(metadatum, 2);
@@ -154,7 +166,7 @@ public final class VCardResultParser extends ResultParser {
       } else if (i > matchStart) {
         // found a match
         if (matches == null) {
-          matches = new ArrayList<List<String>>(1); // lazy init
+          matches = new ArrayList<>(1); // lazy init
         }
         if (i >= 1 && rawText.charAt(i-1) == '\r') {
           i--; // Back up over \r, which really should be there
@@ -177,7 +189,7 @@ public final class VCardResultParser extends ResultParser {
           element = VCARD_ESCAPES.matcher(element).replaceAll("$1");
         }
         if (metadata == null) {
-          List<String> match = new ArrayList<String>(1);
+          List<String> match = new ArrayList<>(1);
           match.add(element);
           matches.add(match);
         } else {
@@ -234,13 +246,12 @@ public final class VCardResultParser extends ResultParser {
       byte[] fragmentBytes = fragmentBuffer.toByteArray();
       String fragment;
       if (charset == null) {
-        fragment = new String(fragmentBytes);
+        fragment = new String(fragmentBytes, Charset.forName("UTF-8"));
       } else {
         try {
           fragment = new String(fragmentBytes, charset);
         } catch (UnsupportedEncodingException e) {
-          // Yikes, well try anyway:
-          fragment = new String(fragmentBytes);
+          fragment = new String(fragmentBytes, Charset.forName("UTF-8"));
         }
       }
       fragmentBuffer.reset();
@@ -264,9 +275,12 @@ public final class VCardResultParser extends ResultParser {
     if (lists == null || lists.isEmpty()) {
       return null;
     }
-    List<String> result = new ArrayList<String>(lists.size());
+    List<String> result = new ArrayList<>(lists.size());
     for (List<String> list : lists) {
-      result.add(list.get(0));
+      String value = list.get(0);
+      if (value != null && !value.isEmpty()) {
+        result.add(value);
+      }
     }
     return result.toArray(new String[lists.size()]);
   }
@@ -275,7 +289,7 @@ public final class VCardResultParser extends ResultParser {
     if (lists == null || lists.isEmpty()) {
       return null;
     }
-    List<String> result = new ArrayList<String>(lists.size());
+    List<String> result = new ArrayList<>(lists.size());
     for (List<String> list : lists) {
       String type = null;
       for (int i = 1; i < list.size(); i++) {
@@ -314,7 +328,7 @@ public final class VCardResultParser extends ResultParser {
         int start = 0;
         int end;
         int componentIndex = 0;
-        while (componentIndex < components.length - 1 && (end = name.indexOf(';', start)) > 0) {
+        while (componentIndex < components.length - 1 && (end = name.indexOf(';', start)) >= 0) {
           components[componentIndex] = name.substring(start, end);
           componentIndex++;
           start = end + 1;
@@ -332,8 +346,10 @@ public final class VCardResultParser extends ResultParser {
   }
 
   private static void maybeAppendComponent(String[] components, int i, StringBuilder newName) {
-    if (components[i] != null) {
-      newName.append(' ');
+    if (components[i] != null && !components[i].isEmpty()) {
+      if (newName.length() > 0) {
+        newName.append(' ');
+      }
       newName.append(components[i]);
     }
   }

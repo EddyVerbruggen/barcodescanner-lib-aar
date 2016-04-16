@@ -22,20 +22,21 @@ import com.google.zxing.client.result.TelParsedResult;
 import android.app.Activity;
 import android.telephony.PhoneNumberUtils;
 
+import barcodescanner.xservices.nl.barcodescanner.R;
+
 /**
  * Offers relevant actions for telephone numbers.
  *
  * @author dswitkin@google.com (Daniel Switkin)
  */
 public final class TelResultHandler extends ResultHandler {
-  private static int[] buttons;
+  private static final int[] buttons = {
+      R.string.button_dial,
+      R.string.button_add_contact
+  };
 
   public TelResultHandler(Activity activity, ParsedResult result) {
     super(activity, result);
-	buttons = new int[]{
-		fakeR.getId("string", "button_dial"),
-		fakeR.getId("string", "button_add_contact")
-	};
   }
 
   @Override
@@ -77,6 +78,6 @@ public final class TelResultHandler extends ResultHandler {
 
   @Override
   public int getDisplayTitle() {
-    return fakeR.getId("string", "result_tel");
+    return R.string.result_tel;
   }
 }

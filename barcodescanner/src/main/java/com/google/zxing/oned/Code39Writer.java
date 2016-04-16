@@ -54,6 +54,9 @@ public final class Code39Writer extends OneDimensionalCodeWriter {
     int codeWidth = 24 + 1 + length;
     for (int i = 0; i < length; i++) {
       int indexInString = Code39Reader.ALPHABET_STRING.indexOf(contents.charAt(i));
+      if (indexInString < 0) {
+        throw new IllegalArgumentException("Bad contents: " + contents);
+      }
       toIntArray(Code39Reader.CHARACTER_ENCODINGS[indexInString], widths);
       for (int width : widths) {
         codeWidth += width;
@@ -64,21 +67,21 @@ public final class Code39Writer extends OneDimensionalCodeWriter {
     int pos = appendPattern(result, 0, widths, true);
     int[] narrowWhite = {1};
     pos += appendPattern(result, pos, narrowWhite, false);
-    //append next character to bytematrix
-    for(int i = length-1; i >= 0; i--) {
+    //append next character to byte matrix
+    for (int i = 0; i < length; i++) {
       int indexInString = Code39Reader.ALPHABET_STRING.indexOf(contents.charAt(i));
       toIntArray(Code39Reader.CHARACTER_ENCODINGS[indexInString], widths);
       pos += appendPattern(result, pos, widths, true);
       pos += appendPattern(result, pos, narrowWhite, false);
     }
     toIntArray(Code39Reader.CHARACTER_ENCODINGS[39], widths);
-    pos += appendPattern(result, pos, widths, true);
+    appendPattern(result, pos, widths, true);
     return result;
   }
 
   private static void toIntArray(int a, int[] toReturn) {
     for (int i = 0; i < 9; i++) {
-      int temp = a & (1 << i);
+      int temp = a & (1 << (8 - i));
       toReturn[i] = temp == 0 ? 1 : 2;
     }
   }
