@@ -14,3 +14,5 @@ Steps to build a new .aar:
  * Run barcodescanner > Tasks > build > build
  * The (release) .aar will be generated in barcodescanner > build > outputs
  * Commit and push any changes made
+
+The generated .aar is used [here](https://github.com/EddyVerbruggen/nativescript-barcodescanner/tree/master/platforms/android).
