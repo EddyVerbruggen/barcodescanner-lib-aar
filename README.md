@@ -1,4 +1,4 @@
-Steps to build a new .aar:
+### Steps to build a new .aar
  * Clone this repo
  * Open it in Android Studio
  * Update any source files as needed (current version is: https://github.com/zxing/zxing/releases/tag/BS-4.7.5):
@@ -13,6 +13,6 @@ Steps to build a new .aar:
  * The (release) .aar will be generated in barcodescanner > build > outputs
  * Commit and push any changes made
 
-The generated .aar is used in:
+###The generated .aar is used in:
 * [NativeScript BarcodeScanner Plugin](https://github.com/EddyVerbruggen/nativescript-barcodescanner/)
 * [Cordova BarcodeScanner Plugin](https://github.com/Telerik-Verified-Plugins/BarcodeScanner/)
