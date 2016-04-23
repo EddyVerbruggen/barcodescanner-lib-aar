@@ -15,7 +15,7 @@
  limitations under the License.
  -->
 <resources>
-  <string name="app_name">Barcode Scanner</string>
+  <!--<string name="app_name">Barcode Scanner</string>-->
   <string name="app_picker_name">แอพพลิเคชั่น</string>
   <string name="bookmark_picker_name">บุ๊คมาร์ก</string>
   <string name="button_add_calendar">เพิ่มไปยังปฏิทิน</string>
