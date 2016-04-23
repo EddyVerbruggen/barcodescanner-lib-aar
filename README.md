@@ -9,6 +9,7 @@ Steps to build a new .aar:
    - Same for `android-core`
    - Note that R.java is generated when building and is supposed to be in build/generated/source/r/debug/barcodescanner/xservices/nl/barcodescanner/R
    - Re-add the 'flip camera' feature and the 'portrait scan' feature I added before!
+   - Make sure no `app_name` tag is active in the `res/values*/string.xml` files
  * Open the Gradle toolwindow
  * Clean barcodescanner > build > outputs
  * Run barcodescanner > Tasks > build > build
