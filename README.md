@@ -12,7 +12,7 @@
  * Clean barcodescanner > build > outputs
  * Run barcodescanner > Tasks > build > build
  * The (release) .aar will be generated in barcodescanner > build > outputs
- * Commit and push any changes made
+ * Commit and push any changes made!
 
 ###The generated .aar is used in:
 * [NativeScript BarcodeScanner Plugin](https://github.com/EddyVerbruggen/nativescript-barcodescanner/)
