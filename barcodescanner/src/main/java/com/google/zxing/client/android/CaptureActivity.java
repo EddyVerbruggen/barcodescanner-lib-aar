@@ -16,8 +16,11 @@
 
 package com.google.zxing.client.android;
 
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.res.Configuration;
 import android.hardware.Camera;
+import android.support.v4.content.LocalBroadcastManager;
 import android.widget.Button;
 import com.google.zxing.BarcodeFormat;
 import com.google.zxing.DecodeHintType;
@@ -133,6 +136,8 @@ public final class CaptureActivity extends Activity implements SurfaceHolder.Cal
     return cameraManager;
   }
 
+  BroadcastReceiver stopReceiver;
+
   @Override
   public void onCreate(Bundle icicle) {
     super.onCreate(icicle);
@@ -147,6 +152,14 @@ public final class CaptureActivity extends Activity implements SurfaceHolder.Cal
     ambientLightManager = new AmbientLightManager(this);
 
     PreferenceManager.setDefaultValues(this, R.xml.preferences, false);
+
+    stopReceiver = new BroadcastReceiver() {
+      @Override
+      public void onReceive(Context context, Intent intent) {
+        finish();
+      }
+    };
+    LocalBroadcastManager.getInstance(this).registerReceiver(stopReceiver, new android.content.IntentFilter("barcode-scanner-stop"));
   }
 
   @Override
@@ -342,6 +355,7 @@ public final class CaptureActivity extends Activity implements SurfaceHolder.Cal
   @Override
   protected void onDestroy() {
     inactivityTimer.shutdown();
+    LocalBroadcastManager.getInstance(this).unregisterReceiver(stopReceiver);
     super.onDestroy();
   }
 
@@ -472,7 +486,17 @@ public final class CaptureActivity extends Activity implements SurfaceHolder.Cal
     switch (source) {
       case NATIVE_APP_INTENT:
       case PRODUCT_SEARCH_LINK:
-        handleDecodeExternally(rawResult, resultHandler, barcode);
+        if (fromLiveScan && getIntent().getBooleanExtra(Intents.Scan.BULK_SCAN, false)) {
+
+          Intent intermediateResult = new Intent("bulk-barcode-result");
+          intermediateResult.putExtra(Intents.Scan.RESULT, rawResult.toString());
+          intermediateResult.putExtra(Intents.Scan.RESULT_FORMAT, rawResult.getBarcodeFormat().toString());
+          LocalBroadcastManager.getInstance(this).sendBroadcast(intermediateResult);
+
+          restartPreviewAfterDelay(BULK_MODE_SCAN_DELAY_MS);
+        } else {
+          handleDecodeExternally(rawResult, resultHandler, barcode);
+        }
         break;
       case ZXING_LINK:
         if (scanFromWebPageManager == null || !scanFromWebPageManager.isScanFromWebPage()) {
