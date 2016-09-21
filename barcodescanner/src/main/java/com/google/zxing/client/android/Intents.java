@@ -176,6 +176,11 @@ public final class Intents {
     public static final String SHOW_FLIP_CAMERA_BUTTON = "SHOW_FLIP_CAMERA_BUTTON";
 
     /**
+     * Set to true if you want to enable bulk scan mode
+     */
+    public static final String BULK_SCAN = "BULK_SCAN";
+
+    /**
      * Lock to "landscape" or "portrait" to override the default sensor-driven scan
      */
     public static final String ORIENTATION_LOCK = "ORIENTATION_LOCK";
