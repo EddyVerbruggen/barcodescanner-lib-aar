@@ -18,6 +18,8 @@ package com.google.zxing.client.android;
 
 import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.content.pm.FeatureInfo;
+import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.hardware.Camera;
 import android.support.v4.content.LocalBroadcastManager;
@@ -109,6 +111,7 @@ public final class CaptureActivity extends Activity implements SurfaceHolder.Cal
   private ViewfinderView viewfinderView;
   private TextView statusView;
   private Button flipButton;
+  private Button torchButton;
   private View resultView;
   private Result lastResult;
   private boolean hasSurface;
@@ -190,6 +193,7 @@ public final class CaptureActivity extends Activity implements SurfaceHolder.Cal
     resultView = findViewById(R.id.result_view);
     statusView = (TextView) findViewById(R.id.status_view);
     flipButton = (Button) findViewById(R.id.flip_button);
+    torchButton = (Button) findViewById(R.id.torch_button);
 
     handler = null;
     lastResult = null;
@@ -812,6 +816,25 @@ public final class CaptureActivity extends Activity implements SurfaceHolder.Cal
             recreate();
           }
         });
+      }
+    }
+
+    if (getIntent().getBooleanExtra(Intents.Scan.SHOW_TORCH_BUTTON, false)) {
+      // only draw the button in case we're using the back camera
+      final int reqCamId = getIntent().getIntExtra(Intents.Scan.CAMERA_ID, OpenCameraInterface.NO_REQUESTED_CAMERA);
+      if (reqCamId != 1) {
+        for (final FeatureInfo feature : this.getPackageManager().getSystemAvailableFeatures()) {
+          if (PackageManager.FEATURE_CAMERA_FLASH.equalsIgnoreCase(feature.name)) {
+            torchButton.setVisibility(View.VISIBLE);
+            torchButton.setOnClickListener(new Button.OnClickListener() {
+              @Override
+              public void onClick(View v) {
+                cameraManager.setTorch(!cameraManager.isTorchOn());
+              }
+            });
+            break;
+          }
+        }
       }
     }
   }
