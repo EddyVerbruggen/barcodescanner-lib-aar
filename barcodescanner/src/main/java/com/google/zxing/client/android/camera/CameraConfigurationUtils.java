@@ -17,14 +17,11 @@
 package com.google.zxing.client.android.camera;
 
 import android.annotation.TargetApi;
-import android.content.Context;
 import android.graphics.Point;
 import android.graphics.Rect;
 import android.hardware.Camera;
 import android.os.Build;
 import android.util.Log;
-import android.view.Surface;
-import android.view.WindowManager;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -314,7 +311,7 @@ public final class CameraConfigurationUtils {
       Log.i(TAG, "Supported preview sizes: " + previewSizesString);
     }
 
-    double screenAspectRatio = (double) screenResolution.x / (double) screenResolution.y;
+    double screenAspectRatio = screenResolution.x / (double) screenResolution.y;
 
     // Remove sizes that are unsuitable
     Iterator<Camera.Size> it = supportedPreviewSizes.iterator();
@@ -330,7 +327,7 @@ public final class CameraConfigurationUtils {
       boolean isCandidatePortrait = realWidth < realHeight;
       int maybeFlippedWidth = isCandidatePortrait ? realHeight : realWidth;
       int maybeFlippedHeight = isCandidatePortrait ? realWidth : realHeight;
-      double aspectRatio = (double) maybeFlippedWidth / (double) maybeFlippedHeight;
+      double aspectRatio = maybeFlippedWidth / (double) maybeFlippedHeight;
       double distortion = Math.abs(aspectRatio - screenAspectRatio);
       if (distortion > MAX_ASPECT_DISTORTION) {
         it.remove();
@@ -360,7 +357,6 @@ public final class CameraConfigurationUtils {
       throw new IllegalStateException("Parameters contained no preview size!");
     }
     Point defaultSize = new Point(defaultPreview.width, defaultPreview.height);
-
     Log.i(TAG, "No suitable preview sizes, using default: " + defaultSize);
     return defaultSize;
   }

@@ -16,10 +16,12 @@
 
 package com.google.zxing.client.android.result;
 
+import barcodescanner.xservices.nl.barcodescanner.R;
 import com.google.zxing.client.result.AddressBookParsedResult;
 import com.google.zxing.client.result.ParsedResult;
 
 import android.app.Activity;
+import android.graphics.Typeface;
 import android.telephony.PhoneNumberUtils;
 import android.text.Spannable;
 import android.text.SpannableString;
@@ -30,8 +32,6 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
-
-import barcodescanner.xservices.nl.barcodescanner.R;
 
 /**
  * Handles address book entries.
@@ -83,17 +83,14 @@ public final class AddressBookResultHandler extends ResultHandler {
     super(activity, result);
     AddressBookParsedResult addressResult = (AddressBookParsedResult) result;
     String[] addresses = addressResult.getAddresses();
-    boolean hasAddress = addresses != null && addresses.length > 0 && addresses[0] != null && !addresses[0].isEmpty();
     String[] phoneNumbers = addressResult.getPhoneNumbers();
-    boolean hasPhoneNumber = phoneNumbers != null && phoneNumbers.length > 0;
     String[] emails = addressResult.getEmails();
-    boolean hasEmailAddress = emails != null && emails.length > 0;
 
     fields = new boolean[MAX_BUTTON_COUNT];
     fields[0] = true; // Add contact is always available
-    fields[1] = hasAddress;
-    fields[2] = hasPhoneNumber;
-    fields[3] = hasEmailAddress;
+    fields[1] = addresses != null && addresses.length > 0 && addresses[0] != null && !addresses[0].isEmpty();
+    fields[2] = phoneNumbers != null && phoneNumbers.length > 0;
+    fields[3] = emails != null && emails.length > 0;
 
     buttonCount = 0;
     for (int x = 0; x < MAX_BUTTON_COUNT; x++) {
@@ -206,7 +203,7 @@ public final class AddressBookResultHandler extends ResultHandler {
     if (namesLength > 0) {
       // Bold the full name to make it stand out a bit.
       Spannable styled = new SpannableString(contents.toString());
-      styled.setSpan(new StyleSpan(android.graphics.Typeface.BOLD), 0, namesLength, 0);
+      styled.setSpan(new StyleSpan(Typeface.BOLD), 0, namesLength, 0);
       return styled;
     } else {
       return contents.toString();

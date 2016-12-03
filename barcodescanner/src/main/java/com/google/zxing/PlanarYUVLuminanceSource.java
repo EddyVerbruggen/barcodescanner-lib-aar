@@ -47,7 +47,7 @@ public final class PlanarYUVLuminanceSource extends LuminanceSource {
     super(width, height);
 
     if (left + width > dataWidth || top + height > dataHeight) {
-//      throw new IllegalArgumentException("Crop rectangle does not fit within image data. Left:" + left + ", width:" + width + ", dataWidth:" + dataWidth + ", top:" + top + ", height:" + height + ", dataHeight:" + dataHeight);
+      throw new IllegalArgumentException("Crop rectangle does not fit within image data.");
     }
 
     this.yuvData = yuvData;
@@ -96,10 +96,9 @@ public final class PlanarYUVLuminanceSource extends LuminanceSource {
     }
 
     // Otherwise copy one cropped row at a time.
-    byte[] yuv = yuvData;
     for (int y = 0; y < height; y++) {
       int outputOffset = y * width;
-      System.arraycopy(yuv, inputOffset, matrix, outputOffset, width);
+      System.arraycopy(yuvData, inputOffset, matrix, outputOffset, width);
       inputOffset += dataWidth;
     }
     return matrix;

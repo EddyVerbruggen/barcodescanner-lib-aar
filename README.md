@@ -1,7 +1,7 @@
 ### Steps to build a new .aar
  * Clone this repo
  * Open it in Android Studio
- * Update any source files as needed (current version is: https://github.com/zxing/zxing/releases/tag/BS-4.7.5):
+ * Update any source files as needed (current version is: https://github.com/zxing/zxing/releases/tag/BS-4.7.6):
    - Copy all files from `core`
    - From the `android` folder grab the src/.../android folder and paste that to the appropriate package
    - Same for `android-core`
@@ -10,7 +10,7 @@
    - Make sure no `app_name` tag is active in the `res/values*/string.xml` files
  * (Finder/Explorer): Clean barcodescanner > build > outputs
  * Open the Gradle toolwindow
- * Run barcodescanner > Tasks > build > build
+ * Run barcodescanner > Tasks > other > build
  * The (release) .aar will be generated in barcodescanner > build > outputs
  * Commit and push any changes made!
 

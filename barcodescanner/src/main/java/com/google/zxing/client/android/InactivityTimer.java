@@ -52,7 +52,7 @@ final class InactivityTimer {
     inactivityTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
   }
 
-  public synchronized void onPause() {
+  synchronized void onPause() {
     cancel();
     if (registered) {
       activity.unregisterReceiver(powerStatusReceiver);
@@ -62,7 +62,7 @@ final class InactivityTimer {
     }
   }
 
-  public synchronized void onResume() {
+  synchronized void onResume() {
     if (registered) {
       Log.w(TAG, "PowerStatusReceiver was already registered?");
     } else {
@@ -86,7 +86,7 @@ final class InactivityTimer {
 
   private final class PowerStatusReceiver extends BroadcastReceiver {
     @Override
-    public void onReceive(Context context, Intent intent){
+    public void onReceive(Context context, Intent intent) {
       if (Intent.ACTION_BATTERY_CHANGED.equals(intent.getAction())) {
         // 0 indicates that we're on battery
         boolean onBatteryNow = intent.getIntExtra(BatteryManager.EXTRA_PLUGGED, -1) <= 0;

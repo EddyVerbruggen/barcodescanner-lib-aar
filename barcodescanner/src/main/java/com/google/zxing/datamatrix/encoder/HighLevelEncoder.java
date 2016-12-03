@@ -128,7 +128,7 @@ public final class HighLevelEncoder {
   private static char randomize253State(char ch, int codewordPosition) {
     int pseudoRandom = ((149 * codewordPosition) % 253) + 1;
     int tempVariable = ch + pseudoRandom;
-    return tempVariable <= 254 ? (char) tempVariable : (char) (tempVariable - 254);
+    return (char) (tempVariable <= 254 ? tempVariable : tempVariable - 254);
   }
 
   /**
@@ -251,12 +251,12 @@ public final class HighLevelEncoder {
 
       //step L
       if (isDigit(c)) {
-        charCounts[ASCII_ENCODATION] += 0.5;
+        charCounts[ASCII_ENCODATION] += 0.5f;
       } else if (isExtendedASCII(c)) {
-        charCounts[ASCII_ENCODATION] = (int) Math.ceil(charCounts[ASCII_ENCODATION]);
-        charCounts[ASCII_ENCODATION] += 2;
+        charCounts[ASCII_ENCODATION] = (float) Math.ceil(charCounts[ASCII_ENCODATION]);
+        charCounts[ASCII_ENCODATION] += 2.0f;
       } else {
-        charCounts[ASCII_ENCODATION] = (int) Math.ceil(charCounts[ASCII_ENCODATION]);
+        charCounts[ASCII_ENCODATION] = (float) Math.ceil(charCounts[ASCII_ENCODATION]);
         charCounts[ASCII_ENCODATION]++;
       }
 
@@ -298,7 +298,7 @@ public final class HighLevelEncoder {
 
       // step Q
       if (isSpecialB256(c)) {
-        charCounts[BASE256_ENCODATION] += 4;
+        charCounts[BASE256_ENCODATION] += 4.0f;
       } else {
         charCounts[BASE256_ENCODATION]++;
       }

@@ -75,8 +75,11 @@ public final class Decoder {
     BitMatrix matrix = detectorResult.getBits();
     boolean[] rawbits = extractBits(matrix);
     boolean[] correctedBits = correctBits(rawbits);
+    byte[] rawBytes = convertBoolArrayToByteArray(correctedBits);
     String result = getEncodedData(correctedBits);
-    return new DecoderResult(null, result, null, null);
+    DecoderResult decoderResult = new DecoderResult(rawBytes, result, null, null);
+    decoderResult.setNumBits(correctedBits.length);
+    return decoderResult;
   }
 
   // This method is used for testing the high-level encoder
@@ -130,6 +133,10 @@ public final class Decoder {
         String str = getCharacter(shiftTable, code);
         if (str.startsWith("CTRL_")) {
           // Table changes
+          // ISO/IEC 24778:2008 prescibes ending a shift sequence in the mode from which it was invoked.
+          // That's including when that mode is a shift.
+          // Our test case dlusbs.png for issue #642 exercises that.
+          latchTable = shiftTable;  // Latch the current mode, so as to return to Upper after U/S B/S
           shiftTable = getTable(str.charAt(5));
           if (str.charAt(6) == 'L') {
             latchTable = shiftTable;
@@ -219,7 +226,6 @@ public final class Decoder {
       throw FormatException.getFormatInstance();
     }
     int offset = rawbits.length % codewordSize;
-    int numECCodewords = numCodewords - numDataCodewords;
 
     int[] dataWords = new int[numCodewords];
     for (int i = 0; i < numCodewords; i++, offset += codewordSize) {
@@ -228,7 +234,7 @@ public final class Decoder {
 
     try {
       ReedSolomonDecoder rsDecoder = new ReedSolomonDecoder(gf);
-      rsDecoder.decode(dataWords, numECCodewords);
+      rsDecoder.decode(dataWords, numCodewords - numDataCodewords);
     } catch (ReedSolomonException ex) {
       throw FormatException.getFormatInstance(ex);
     }
@@ -268,10 +274,10 @@ public final class Decoder {
    *
    * @return the array of bits
    */
-  boolean[] extractBits(BitMatrix matrix) {
+  private boolean[] extractBits(BitMatrix matrix) {
     boolean compact = ddata.isCompact();
     int layers = ddata.getNbLayers();
-    int baseMatrixSize = compact ? 11 + layers * 4 : 14 + layers * 4; // not including alignment lines
+    int baseMatrixSize = (compact ? 11 : 14) + layers * 4; // not including alignment lines
     int[] alignmentMap = new int[baseMatrixSize];
     boolean[] rawbits = new boolean[totalBitsInLayer(layers, compact)];
 
@@ -290,7 +296,7 @@ public final class Decoder {
       }
     }
     for (int i = 0, rowOffset = 0; i < layers; i++) {
-      int rowSize = compact ? (layers - i) * 4 + 9 : (layers - i) * 4 + 12;
+      int rowSize = (layers - i) * 4 + (compact ? 9 : 12);
       // The top-left most point of this layer is <low, low> (not including alignment lines)
       int low = i * 2;
       // The bottom-right most point of this layer is <high, high> (not including alignment lines)
@@ -330,6 +336,28 @@ public final class Decoder {
       }
     }
     return res;
+  }
+
+  /**
+   * Reads a code of length 8 in an array of bits, padding with zeros
+   */
+  private static byte readByte(boolean[] rawbits, int startIndex) {
+    int n = rawbits.length - startIndex;
+    if (n >= 8) {
+      return (byte) readCode(rawbits, startIndex, 8);
+    }
+    return (byte) (readCode(rawbits, startIndex, n) << (8 - n));
+  }
+
+  /**
+   * Packs a bit array into bytes, most significant bit first
+   */
+  static byte[] convertBoolArrayToByteArray(boolean[] boolArr) {
+    byte[] byteArr = new byte[(boolArr.length + 7) / 8];
+    for (int i = 0; i < byteArr.length; i++) {
+      byteArr[i] = readByte(boolArr, 8 * i);
+    }
+    return byteArr;
   }
 
   private static int totalBitsInLayer(int layers, boolean compact) {
