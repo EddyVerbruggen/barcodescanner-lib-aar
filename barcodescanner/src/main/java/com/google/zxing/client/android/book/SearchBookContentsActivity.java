@@ -98,7 +98,7 @@ public final class SearchBookContentsActivity extends Activity {
     CookieManager.getInstance().removeExpiredCookie();
 
     Intent intent = getIntent();
-    if (intent == null || !intent.getAction().equals(Intents.SearchBookContents.ACTION)) {
+    if (intent == null || !Intents.SearchBookContents.ACTION.equals(intent.getAction())) {
       finish();
       return;
     }

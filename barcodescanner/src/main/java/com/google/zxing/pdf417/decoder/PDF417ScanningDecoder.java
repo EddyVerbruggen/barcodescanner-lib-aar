@@ -22,6 +22,7 @@ import com.google.zxing.NotFoundException;
 import com.google.zxing.ResultPoint;
 import com.google.zxing.common.BitMatrix;
 import com.google.zxing.common.DecoderResult;
+import com.google.zxing.common.detector.MathUtils;
 import com.google.zxing.pdf417.PDF417Common;
 import com.google.zxing.pdf417.decoder.ec.ErrorCorrection;
 
@@ -125,7 +126,7 @@ public final class PDF417ScanningDecoder {
 
   private static DetectionResult merge(DetectionResultRowIndicatorColumn leftRowIndicatorColumn,
                                        DetectionResultRowIndicatorColumn rightRowIndicatorColumn)
-      throws NotFoundException, FormatException {
+      throws NotFoundException {
     if (leftRowIndicatorColumn == null && rightRowIndicatorColumn == null) {
       return null;
     }
@@ -139,7 +140,7 @@ public final class PDF417ScanningDecoder {
   }
 
   private static BoundingBox adjustBoundingBox(DetectionResultRowIndicatorColumn rowIndicatorColumn)
-      throws NotFoundException, FormatException {
+      throws NotFoundException {
     if (rowIndicatorColumn == null) {
       return null;
     }
@@ -326,7 +327,7 @@ public final class PDF417ScanningDecoder {
     throw ChecksumException.getChecksumInstance();
   }
 
-  private static BarcodeValue[][] createBarcodeMatrix(DetectionResult detectionResult) throws FormatException {
+  private static BarcodeValue[][] createBarcodeMatrix(DetectionResult detectionResult) {
     BarcodeValue[][] barcodeMatrix =
         new BarcodeValue[detectionResult.getBarcodeRowCount()][detectionResult.getBarcodeColumnCount() + 2];
     for (int row = 0; row < barcodeMatrix.length; row++) {
@@ -417,7 +418,7 @@ public final class PDF417ScanningDecoder {
       return null;
     }
     int endColumn;
-    int codewordBitCount = PDF417Common.getBitCountSum(moduleBitCount);
+    int codewordBitCount = MathUtils.sum(moduleBitCount);
     if (leftToRight) {
       endColumn = startColumn + codewordBitCount;
     } else {
@@ -430,7 +431,7 @@ public final class PDF417ScanningDecoder {
       startColumn = endColumn - codewordBitCount;
     }
     // TODO implement check for width and correction of black and white bars
-    // use start (and maybe stop pattern) to determine if blackbars are wider than white bars. If so, adjust.
+    // use start (and maybe stop pattern) to determine if black bars are wider than white bars. If so, adjust.
     // should probably done only for codewords with a lot more than 17 bits. 
     // The following fixes 10-1.png, which has wide black bars and small white bars
     //    for (int i = 0; i < moduleBitCount.length; i++) {
@@ -468,8 +469,8 @@ public final class PDF417ScanningDecoder {
     int moduleNumber = 0;
     int increment = leftToRight ? 1 : -1;
     boolean previousPixelValue = leftToRight;
-    while (((leftToRight && imageColumn < maxColumn) || (!leftToRight && imageColumn >= minColumn)) &&
-        moduleNumber < moduleBitCount.length) {
+    while ((leftToRight ? imageColumn < maxColumn : imageColumn >= minColumn) &&
+           moduleNumber < moduleBitCount.length) {
       if (image.get(imageColumn, imageRow) == previousPixelValue) {
         moduleBitCount[moduleNumber]++;
         imageColumn += increment;
@@ -479,7 +480,8 @@ public final class PDF417ScanningDecoder {
       }
     }
     if (moduleNumber == moduleBitCount.length ||
-        (((leftToRight && imageColumn == maxColumn) || (!leftToRight && imageColumn == minColumn)) && moduleNumber == moduleBitCount.length - 1)) {
+        ((imageColumn == (leftToRight ? maxColumn : minColumn)) &&
+         moduleNumber == moduleBitCount.length - 1)) {
       return moduleBitCount;
     }
     return null;
@@ -499,8 +501,8 @@ public final class PDF417ScanningDecoder {
     int increment = leftToRight ? -1 : 1;
     // there should be no black pixels before the start column. If there are, then we need to start earlier.
     for (int i = 0; i < 2; i++) {
-      while (((leftToRight && correctedStartColumn >= minColumn) || (!leftToRight && correctedStartColumn < maxColumn)) &&
-          leftToRight == image.get(correctedStartColumn, imageRow)) {
+      while ((leftToRight ? correctedStartColumn >= minColumn : correctedStartColumn < maxColumn) &&
+             leftToRight == image.get(correctedStartColumn, imageRow)) {
         if (Math.abs(codewordStartColumn - correctedStartColumn) > CODEWORD_SKEW_SIZE) {
           return codewordStartColumn;
         }

@@ -39,6 +39,9 @@ import com.google.zxing.client.android.Intents;
 
 import barcodescanner.xservices.nl.barcodescanner.R;
 
+/**
+ * The activity for interacting with the scan history.
+ */
 public final class HistoryActivity extends ListActivity {
 
   private static final String TAG = HistoryActivity.class.getSimpleName();

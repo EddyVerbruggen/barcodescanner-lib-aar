@@ -340,7 +340,7 @@ public final class Code128Reader extends OneDReader {
             switch (code) {
               case CODE_FNC_1:
                 if (convertFNC1) {
-                  if (result.length() == 0){
+                  if (result.length() == 0) {
                     // GS1 specification 5.4.3.7. and 5.4.6.4. If the first char after the start code
                     // is FNC1 then this is GS1-128. We add the symbology identifier.
                     result.append("]C1");
@@ -396,7 +396,7 @@ public final class Code128Reader extends OneDReader {
             switch (code) {
               case CODE_FNC_1:
                 if (convertFNC1) {
-                  if (result.length() == 0){
+                  if (result.length() == 0) {
                     // GS1 specification 5.4.3.7. and 5.4.6.4. If the first char after the start code
                     // is FNC1 then this is GS1-128. We add the symbology identifier.
                     result.append("]C1");
@@ -450,7 +450,7 @@ public final class Code128Reader extends OneDReader {
             switch (code) {
               case CODE_FNC_1:
                 if (convertFNC1) {
-                  if (result.length() == 0){
+                  if (result.length() == 0) {
                     // GS1 specification 5.4.3.7. and 5.4.6.4. If the first char after the start code
                     // is FNC1 then this is GS1-128. We add the symbology identifier.
                     result.append("]C1");
@@ -517,7 +517,7 @@ public final class Code128Reader extends OneDReader {
       }
     }
 
-    float left = (float) (startPatternInfo[1] + startPatternInfo[0]) / 2.0f;
+    float left = (startPatternInfo[1] + startPatternInfo[0]) / 2.0f;
     float right = lastStart + lastPatternSize / 2.0f;
 
     int rawCodesSize = rawCodes.size();
@@ -530,8 +530,8 @@ public final class Code128Reader extends OneDReader {
         result.toString(),
         rawBytes,
         new ResultPoint[]{
-            new ResultPoint(left, (float) rowNumber),
-            new ResultPoint(right, (float) rowNumber)},
+            new ResultPoint(left, rowNumber),
+            new ResultPoint(right, rowNumber)},
         BarcodeFormat.CODE_128);
 
   }

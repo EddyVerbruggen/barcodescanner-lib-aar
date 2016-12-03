@@ -93,7 +93,7 @@ public final class CodaBarReader extends OneDReader {
       // Hack: We store the position in the alphabet table into a
       // StringBuilder, so that we can access the decoded patterns in
       // validatePattern. We'll translate to the actual characters later.
-      decodeRowResult.append((char)charOffset);
+      decodeRowResult.append((char) charOffset);
       nextStart += 8;
       // Stop as soon as we see the end character.
       if (decodeRowResult.length() > 1 &&
@@ -147,21 +147,21 @@ public final class CodaBarReader extends OneDReader {
     for (int i = 0; i < startOffset; i++) {
       runningCount += counters[i];
     }
-    float left = (float) runningCount;
+    float left = runningCount;
     for (int i = startOffset; i < nextStart - 1; i++) {
       runningCount += counters[i];
     }
-    float right = (float) runningCount;
+    float right = runningCount;
     return new Result(
         decodeRowResult.toString(),
         null,
         new ResultPoint[]{
-            new ResultPoint(left, (float) rowNumber),
-            new ResultPoint(right, (float) rowNumber)},
+            new ResultPoint(left, rowNumber),
+            new ResultPoint(right, rowNumber)},
         BarcodeFormat.CODABAR);
   }
 
-  void validatePattern(int start) throws NotFoundException {
+  private void validatePattern(int start) throws NotFoundException {
     // First, sum up the total size of our four categories of stripe sizes;
     int[] sizes = {0, 0, 0, 0};
     int[] counts = {0, 0, 0, 0};
@@ -270,7 +270,7 @@ public final class CodaBarReader extends OneDReader {
         for (int j = i; j < i + 7; j++) {
           patternSize += counters[j];
         }
-        if (i == 1 || counters[i-1] >= patternSize / 2) {
+        if (i == 1 || counters[i - 1] >= patternSize / 2) {
           return i;
         }
       }
