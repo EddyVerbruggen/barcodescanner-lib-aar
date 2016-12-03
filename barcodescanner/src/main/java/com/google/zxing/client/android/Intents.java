@@ -179,6 +179,11 @@ public final class Intents {
     public static final String SHOW_FLIP_CAMERA_BUTTON = "SHOW_FLIP_CAMERA_BUTTON";
 
     /**
+     * Set to true if we want to show the button to toggle the torch (if available)
+     */
+    public static final String SHOW_TORCH_BUTTON = "SHOW_TORCH_BUTTON";
+
+    /**
      * Set to true if you want to enable bulk scan mode
      */
     public static final String BULK_SCAN = "BULK_SCAN";
