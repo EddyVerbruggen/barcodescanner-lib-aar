@@ -357,6 +357,7 @@ public final class CameraManager {
         }
       }
       int tmp = width;
+      //noinspection SuspiciousNameCombination
       width = height;
       height = tmp;
     } else {
