@@ -259,7 +259,11 @@ public final class CaptureActivity extends Activity implements SurfaceHolder.Cal
             cameraManager.setManualCameraId(cameraId);
           }
         }
-        
+
+        if (intent.getBooleanExtra(Intents.Scan.TORCH_ON, false)) {
+          cameraManager.setTorchInitiallyOn(true);
+        }
+
         String customPromptMessage = intent.getStringExtra(Intents.Scan.PROMPT_MESSAGE);
         if (customPromptMessage != null) {
           statusView.setText(customPromptMessage);
