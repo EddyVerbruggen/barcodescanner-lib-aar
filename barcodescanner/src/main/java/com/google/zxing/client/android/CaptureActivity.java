@@ -665,12 +665,18 @@ public final class CaptureActivity extends Activity implements SurfaceHolder.Cal
       viewfinderView.drawResultBitmap(barcode);
     }
 
-    long resultDurationMS;
-    if (getIntent() == null) {
-      resultDurationMS = DEFAULT_INTENT_RESULT_DURATION_MS;
-    } else {
-      resultDurationMS = getIntent().getLongExtra(Intents.Scan.RESULT_DISPLAY_DURATION_MS,
-                                                  DEFAULT_INTENT_RESULT_DURATION_MS);
+    long resultDurationMS = DEFAULT_INTENT_RESULT_DURATION_MS;
+    if (getIntent() != null) {
+      if (getIntent().hasExtra(Intents.Scan.RESULT_DISPLAY_DURATION_MS)) {
+        final String durationStr = getIntent().getStringExtra(Intents.Scan.RESULT_DISPLAY_DURATION_MS);
+        if (durationStr != null) {
+          try {
+            resultDurationMS = Long.parseLong(durationStr);
+          } catch (NumberFormatException e) {
+            Log.e(TAG, "Could not parse " + durationStr + " to Long", e);
+          }
+        }
+      }
     }
 
     if (resultDurationMS > 0) {
