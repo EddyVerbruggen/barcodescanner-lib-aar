@@ -116,6 +116,7 @@ public final class CaptureActivity extends Activity implements SurfaceHolder.Cal
   private Result lastResult;
   private boolean hasSurface;
   private boolean copyToClipboard;
+  private boolean beepOnScan;
   private IntentSource source;
   private String sourceUrl;
   private ScanFromWebPageManager scanFromWebPageManager;
@@ -226,6 +227,8 @@ public final class CaptureActivity extends Activity implements SurfaceHolder.Cal
 
     copyToClipboard = prefs.getBoolean(PreferencesActivity.KEY_COPY_TO_CLIPBOARD, true)
         && (intent == null || intent.getBooleanExtra(Intents.Scan.SAVE_HISTORY, true));
+
+    beepOnScan = (intent == null || intent.getBooleanExtra(Intents.Scan.BEEP_ON_SCAN, true));
 
     source = IntentSource.NONE;
     sourceUrl = null;
@@ -487,7 +490,9 @@ public final class CaptureActivity extends Activity implements SurfaceHolder.Cal
     if (fromLiveScan) {
       historyManager.addHistoryItem(rawResult, resultHandler);
       // Then not from history, so beep/vibrate and we have an image to draw on
-      beepManager.playBeepSoundAndVibrate();
+      if (beepOnScan) {
+        beepManager.playBeepSoundAndVibrate();
+      }
       drawResultPoints(barcode, scaleFactor, rawResult);
     }
 

@@ -190,6 +190,11 @@ public final class Intents {
     public static final String TORCH_ON = "TORCH_ON";
 
     /**
+     * Set to false if you want to suppress the beep when a code is scanned
+     */
+    public static final String BEEP_ON_SCAN = "BEEP_ON_SCAN";
+
+    /**
      * Set to true if you want to enable bulk scan mode
      */
     public static final String BULK_SCAN = "BULK_SCAN";
