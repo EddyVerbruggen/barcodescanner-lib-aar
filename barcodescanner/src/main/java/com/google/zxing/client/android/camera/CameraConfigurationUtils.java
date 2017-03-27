@@ -275,6 +275,8 @@ public final class CameraConfigurationUtils {
 
   public static Point findBestPreviewSizeValue(Camera.Parameters parameters, Point screenResolution) {
 
+
+
     List<Camera.Size> rawSupportedSizes = parameters.getSupportedPreviewSizes();
     if (rawSupportedSizes == null) {
       Log.w(TAG, "Device returned no supported preview sizes; using default");
@@ -325,8 +327,11 @@ public final class CameraConfigurationUtils {
       }
 
       boolean isCandidatePortrait = realWidth < realHeight;
-      int maybeFlippedWidth = isCandidatePortrait ? realHeight : realWidth;
-      int maybeFlippedHeight = isCandidatePortrait ? realWidth : realHeight;
+      boolean isScreenPortrait = screenResolution.x < screenResolution.y;
+      boolean isOrientationMatch = (isCandidatePortrait && isScreenPortrait || !isCandidatePortrait && !isScreenPortrait);
+
+      int maybeFlippedWidth = isOrientationMatch ? realWidth : realHeight;
+      int maybeFlippedHeight = isOrientationMatch ? realHeight : realWidth;
       double aspectRatio = maybeFlippedWidth / (double) maybeFlippedHeight;
       double distortion = Math.abs(aspectRatio - screenAspectRatio);
       if (distortion > MAX_ASPECT_DISTORTION) {
