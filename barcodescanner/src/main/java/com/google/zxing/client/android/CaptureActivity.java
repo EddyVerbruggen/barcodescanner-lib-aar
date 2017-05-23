@@ -57,8 +57,6 @@ import android.preference.PreferenceManager;
 import android.util.Log;
 import android.util.TypedValue;
 import android.view.KeyEvent;
-import android.view.Menu;
-import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.Surface;
 import android.view.SurfaceHolder;
@@ -814,7 +812,15 @@ public final class CaptureActivity extends Activity implements SurfaceHolder.Cal
 
   private void resetStatusView() {
     resultView.setVisibility(View.GONE);
-    statusView.setText(R.string.msg_default_status);
+
+    // in case of continuous scan mode we don't want the message to be reset to the default if previously overridden
+    String customPromptMessage = getIntent().getStringExtra(Intents.Scan.PROMPT_MESSAGE);
+    if (customPromptMessage != null) {
+      statusView.setText(customPromptMessage);
+    } else {
+      statusView.setText(R.string.msg_default_status);
+    }
+
     statusView.setVisibility(View.VISIBLE);
     viewfinderView.setVisibility(View.VISIBLE);
     lastResult = null;
