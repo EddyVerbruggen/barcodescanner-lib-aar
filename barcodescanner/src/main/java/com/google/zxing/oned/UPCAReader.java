@@ -77,7 +77,9 @@ public final class UPCAReader extends UPCEANReader {
   private static Result maybeReturnResult(Result result) throws FormatException {
     String text = result.getText();
     if (text.charAt(0) == '0') {
-      return new Result(text.substring(1), null, result.getResultPoints(), BarcodeFormat.UPC_A);
+      Result retval = new Result(text.substring(1), null, result.getResultPoints(), BarcodeFormat.UPC_A);
+      retval.putAllMetadata(result.getResultMetadata());
+      return retval;
     } else {
       throw FormatException.getFormatInstance();
     }
