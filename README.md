@@ -14,6 +14,6 @@
  * The (release) .aar will be generated in barcodescanner > build > outputs
  * Commit and push any changes made!
 
-###The generated .aar is used in:
+### The generated .aar is used in:
 * [NativeScript BarcodeScanner Plugin](https://github.com/EddyVerbruggen/nativescript-barcodescanner/)
 * [Cordova BarcodeScanner Plugin](https://github.com/Telerik-Verified-Plugins/BarcodeScanner/)
