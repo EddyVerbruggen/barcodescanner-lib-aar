@@ -74,7 +74,7 @@ public final class CameraManager {
     previewCallback = new PreviewCallback(configManager);
     windowManager = (WindowManager) this.context.getSystemService(Context.WINDOW_SERVICE);
   }
-  
+
   /**
    * Opens the camera driver and initializes the hardware parameters.
    *
@@ -247,9 +247,9 @@ public final class CameraManager {
     }
     return framingRect;
   }
-  
+
   private static int findDesiredDimensionInRange(int resolution, int hardMin, int hardMax) {
-    int dim = 5 * resolution / 8; // Target 5/8 of each dimension
+    int dim = 7 * resolution / 8; // Target 7/8 of each dimension
     if (dim < hardMin) {
       return hardMin;
     }
@@ -300,7 +300,7 @@ public final class CameraManager {
     return framingRectInPreview;
   }
 
-  
+
   /**
    * Allows third party apps to specify the camera ID, rather than determine
    * it automatically based on available cameras and their orientation.
@@ -310,7 +310,7 @@ public final class CameraManager {
   public synchronized void setManualCameraId(int cameraId) {
     requestedCameraId = cameraId;
   }
-  
+
   public synchronized void setTorchInitiallyOn(boolean on) {
     torchInitiallyOn = on;
   }
