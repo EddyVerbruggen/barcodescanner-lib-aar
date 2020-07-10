@@ -40,6 +40,17 @@ import java.util.Map;
  */
 public final class AztecReader implements Reader {
 
+  private void reportFoundResultPoints(Map<DecodeHintType, ?> hints, ResultPoint[] points) {
+    if (hints != null) {
+      ResultPointCallback rpcb = (ResultPointCallback) hints.get(DecodeHintType.NEED_RESULT_POINT_CALLBACK);
+      if (rpcb != null) {
+        for (ResultPoint point : points) {
+          rpcb.foundPossibleResultPoint(point);
+        }
+      }
+    }
+  }
+
   /**
    * Locates and decodes a Data Matrix code in an image.
    *
@@ -64,6 +75,7 @@ public final class AztecReader implements Reader {
     try {
       AztecDetectorResult detectorResult = detector.detect(false);
       points = detectorResult.getPoints();
+      reportFoundResultPoints(hints, points);
       decoderResult = new Decoder().decode(detectorResult);
     } catch (NotFoundException e) {
       notFoundException = e;
@@ -74,6 +86,7 @@ public final class AztecReader implements Reader {
       try {
         AztecDetectorResult detectorResult = detector.detect(true);
         points = detectorResult.getPoints();
+        reportFoundResultPoints(hints, points);
         decoderResult = new Decoder().decode(detectorResult);
       } catch (NotFoundException | FormatException e) {
         if (notFoundException != null) {
@@ -86,22 +99,13 @@ public final class AztecReader implements Reader {
       }
     }
 
-    if (hints != null) {
-      ResultPointCallback rpcb = (ResultPointCallback) hints.get(DecodeHintType.NEED_RESULT_POINT_CALLBACK);
-      if (rpcb != null) {
-        for (ResultPoint point : points) {
-          rpcb.foundPossibleResultPoint(point);
-        }
-      }
-    }
-
     Result result = new Result(decoderResult.getText(),
                                decoderResult.getRawBytes(),
                                decoderResult.getNumBits(),
                                points,
                                BarcodeFormat.AZTEC,
                                System.currentTimeMillis());
-    
+
     List<byte[]> byteSegments = decoderResult.getByteSegments();
     if (byteSegments != null) {
       result.putMetadata(ResultMetadataType.BYTE_SEGMENTS, byteSegments);
@@ -110,7 +114,7 @@ public final class AztecReader implements Reader {
     if (ecLevel != null) {
       result.putMetadata(ResultMetadataType.ERROR_CORRECTION_LEVEL, ecLevel);
     }
-    
+
     return result;
   }
 
